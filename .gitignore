@@ -1,0 +1,24 @@
+node_modules/
+.expo/
+dist/
+web-build/
+android/
+ios/
+*.apk
+*.aab
+models/
+*.gguf
+.qvac/
+.env*
+*.keystore
+*.jks
+google-services.json
+GoogleService-Info.plist
+.DS_Store
+*.log
+expo-env.d.ts
+
+# tooling / scaffold cruft
+.claude/
+AGENTS.md
+CLAUDE.md
