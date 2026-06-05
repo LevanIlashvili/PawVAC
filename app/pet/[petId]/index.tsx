@@ -1,8 +1,9 @@
 // Timeline tab — pet header, risk chips, reminder banner. (Feed + FAB added in later commits.)
 import { Pressable, ScrollView, Text, View, StyleSheet } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { PETS, nextReminder } from "@/data/mock";
+import { PETS, nextReminder, eventsFor } from "@/data/mock";
 import { Chip } from "@/ui/primitives";
+import { EventRow } from "@/ui/EventRow";
 import { colors, radius, shadowCard } from "@/ui/theme";
 import { type } from "@/ui/type";
 
@@ -37,6 +38,12 @@ export default function Timeline() {
         <Text style={type.heading}>Timeline</Text>
         <Text style={s.filter}>filter ▾</Text>
       </View>
+
+      <View style={s.feed}>
+        {eventsFor(pet.id).map((e) => (
+          <EventRow key={e.id} event={e} onPress={() => router.push(`/event/${e.id}`)} />
+        ))}
+      </View>
     </ScrollView>
   );
 }
@@ -49,4 +56,5 @@ const s = StyleSheet.create({
   bannerText: { color: colors.accent, fontSize: 13, fontWeight: "500" },
   sectionRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 8 },
   filter: { color: colors.accent, fontSize: 13, fontWeight: "500" },
+  feed: { paddingHorizontal: 14, gap: 10 },
 });
