@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { PETS, nextReminder, eventsFor } from "@/data/mock";
 import { Chip } from "@/ui/primitives";
 import { EventRow } from "@/ui/EventRow";
+import { EntryFab } from "@/ui/EntryFab";
 import { colors, radius, shadowCard } from "@/ui/theme";
 import { type } from "@/ui/type";
 
@@ -14,7 +15,8 @@ export default function Timeline() {
   const signalment = [pet.species, pet.breed, pet.ageLabel, pet.weightKg && `${pet.weightKg} kg`].filter(Boolean).join(" · ");
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.bg }} contentContainerStyle={{ paddingBottom: 24 }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <ScrollView style={{ flex: 1, backgroundColor: colors.bg }} contentContainerStyle={{ paddingBottom: 90 }}>
       <View style={s.header}>
         <View style={s.avatar}><Text style={{ fontSize: 30 }}>{pet.emoji}</Text></View>
         <View style={{ flex: 1 }}>
@@ -45,6 +47,8 @@ export default function Timeline() {
         ))}
       </View>
     </ScrollView>
+    <EntryFab petId={pet.id} petName={pet.name} />
+    </View>
   );
 }
 
