@@ -1,7 +1,7 @@
 // One timeline row: kind icon, summary, date, provenance badge + confirmed state.
 import { Pressable, Text, View, StyleSheet } from "react-native";
 import { TimelineEvent, EventKind, EventSource } from "@/data/types";
-import { colors, radius, shadowCard } from "./theme";
+import { colors, radius, shadowSoft } from "./theme";
 
 const KIND_ICON: Record<EventKind, string> = {
   weight: "⚖️", meal: "🍽️", symptom: "🩹", medication: "💊", vaccine: "💉",
@@ -29,7 +29,7 @@ export function EventRow({ event, onPress }: { event: TimelineEvent; onPress?: (
 }
 
 const s = StyleSheet.create({
-  row: { backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.line, borderRadius: radius.product, paddingVertical: 12, paddingHorizontal: 14, ...shadowCard },
+  row: { backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.line, borderRadius: radius.product, paddingVertical: 12, paddingHorizontal: 14, ...shadowSoft },
   r1: { flexDirection: "row", alignItems: "center", gap: 10 },
   icon: { fontSize: 18 },
   summary: { flex: 1, fontSize: 14, color: colors.ink },

@@ -58,7 +58,7 @@ const s = StyleSheet.create({
   chips: { flexDirection: "row", gap: 6, marginTop: 6, flexWrap: "wrap" },
   banner: { marginHorizontal: 14, marginBottom: 6, backgroundColor: colors.accentTint, borderWidth: 1, borderColor: colors.accentTint2, borderRadius: radius.card, paddingVertical: 11, paddingHorizontal: 13, ...shadowCard },
   bannerText: { color: colors.accent, fontSize: 13, fontWeight: "500" },
-  sectionRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 8 },
+  sectionRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingTop: 10, paddingBottom: 6 },
   filter: { color: colors.accent, fontSize: 13, fontWeight: "500" },
-  feed: { paddingHorizontal: 14, gap: 10 },
+  feed: { paddingHorizontal: 14, gap: 9 },
 });

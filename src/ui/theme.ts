@@ -47,6 +47,15 @@ export const shadowCard = {
   elevation: 2,
 } as const;
 
+// Softer shadow for dense lists (timeline rows) so stacked cards don't muddy.
+export const shadowSoft = {
+  shadowColor: "#A4ACB9",
+  shadowOpacity: 0.14,
+  shadowRadius: 3,
+  shadowOffset: { width: 0, height: 1 },
+  elevation: 1,
+} as const;
+
 export type Band = "home_monitor" | "vet_soon" | "vet_urgent";
 export const bandColor = (b: Band) =>
   b === "vet_urgent" ? colors.bandUrgent : b === "vet_soon" ? colors.bandSoon : colors.bandHome;
