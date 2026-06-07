@@ -5,6 +5,7 @@ import { Pressable, ScrollView, Text, TextInput, View, StyleSheet } from "react-
 import { useLocalSearchParams } from "expo-router";
 import { PETS } from "@/data/mock";
 import { Button, Pill } from "@/ui/primitives";
+import { BandCard, RedFlag } from "@/ui/BandCard";
 import { colors, radius, shadowCard } from "@/ui/theme";
 import { type } from "@/ui/type";
 
@@ -15,6 +16,7 @@ export default function Ask() {
   const pet = PETS.find((p) => p.id === petId) ?? PETS[0];
   const [mode, setMode] = useState<Mode>("triage");
   const [q, setQ] = useState("");
+  const [asked, setAsked] = useState(false);
 
   return (
     <ScrollView style={s.screen} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
@@ -37,7 +39,29 @@ export default function Ask() {
         <Text style={s.mic}>🎤</Text>
       </View>
 
-      <Button title="Ask" onPress={() => { /* result card in next commit */ }} style={{ marginTop: 6 }} />
+      <Button title="Ask" onPress={() => setAsked(true)} style={{ marginTop: 6 }} />
+
+      {asked && (
+        <View style={{ marginTop: 16 }}>
+          <BandCard band="vet_soon">
+            <Text style={s.cardBody}>
+              Ties to the rear-left osteomyelitis (Mar 2024) and today's limp + off food.
+            </Text>
+            <RedFlag>
+              Rule out bloat (GDV). A deep-chested dog going off food can mask early bloat — swollen/hard
+              belly or unproductive retching = emergency, go now.
+            </RedFlag>
+            <Text style={s.cardLabel}>Ask your vet:</Text>
+            <Text style={s.bullet}>• Same limb as the osteomyelitis?</Text>
+            <Text style={s.bullet}>• Any abdominal distension or retching?</Text>
+            <Text style={s.bullet}>• Fever?</Text>
+          </BandCard>
+          <View style={s.cardActions}>
+            <Button title="Log this" variant="ghost" style={{ flex: 1 }} />
+            <Button title="Vet Pack" style={{ flex: 1 }} />
+          </View>
+        </View>
+      )}
 
       <Text style={s.hint}>
         {mode === "triage"
@@ -55,4 +79,9 @@ const s = StyleSheet.create({
   input: { flex: 1, color: colors.ink, fontSize: 14, minHeight: 22 },
   mic: { fontSize: 18, color: colors.muted },
   hint: { color: colors.muted, fontSize: 12, marginTop: 12, lineHeight: 18 },
+  cardBody: { color: colors.ink, fontSize: 13.5, lineHeight: 19 },
+  cardLabel: { color: colors.ink, fontSize: 13.5, fontWeight: "600", marginTop: 2 },
+  bullet: { color: colors.dim, fontSize: 13, marginTop: 3 },
+  cardActions: { flexDirection: "row", gap: 10, marginTop: 12 },
 });
+
