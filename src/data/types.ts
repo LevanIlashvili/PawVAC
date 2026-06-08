@@ -15,8 +15,19 @@ export interface Pet {
   sex?: "m" | "f";
   ageLabel?: string;     // e.g. "7y" (UI label; DOB math comes later)
   weightKg?: number;
-  emoji: string;         // placeholder avatar until photos wire in
   riskFlags: string[];
+  color: string;         // dashboard color-coding (calendar dots, status cards)
+}
+
+// A scheduled, dated item shown on the dashboard calendar/agenda (med dose, vaccine, appt).
+export interface CalendarItem {
+  id: string;
+  petId: string;
+  date: string;          // ISO "YYYY-MM-DD"
+  kind: EventKind;
+  title: string;
+  timeLabel?: string;    // e.g. "8:00 pm"
+  done?: boolean;
 }
 
 export interface TimelineEvent {

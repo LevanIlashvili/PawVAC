@@ -9,17 +9,17 @@ export interface KindField {
   multiline?: boolean;
 }
 
-export const KIND_META: Record<EventKind, { icon: string; label: string }> = {
-  weight: { icon: "⚖️", label: "Weight" },
-  symptom: { icon: "🩹", label: "Symptom" },
-  meal: { icon: "🍽️", label: "Meal" },
-  note: { icon: "📝", label: "Note" },
-  medication: { icon: "💊", label: "Medication" },
-  vaccine: { icon: "💉", label: "Vaccine" },
-  vet_visit: { icon: "🏥", label: "Vet visit" },
-  lab_result: { icon: "🧪", label: "Lab result" },
-  document: { icon: "📄", label: "Document" },
-  triage: { icon: "❓", label: "Triage" },
+export const KIND_LABEL: Record<EventKind, string> = {
+  weight: "Weight",
+  symptom: "Symptom",
+  meal: "Meal",
+  note: "Note",
+  medication: "Medication",
+  vaccine: "Vaccine",
+  vet_visit: "Vet visit",
+  lab_result: "Lab result",
+  document: "Document",
+  triage: "Triage",
 };
 
 // The 8 manual kinds offered in the picker (document/triage are AI-created, not manual).

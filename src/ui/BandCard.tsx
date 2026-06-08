@@ -2,6 +2,8 @@
 import { ReactNode } from "react";
 import { Text, View, StyleSheet } from "react-native";
 import { Band, bandColor, bandLabel, colors, radius, shadowCard } from "./theme";
+import { Icon } from "./icons";
+import { FONT } from "./type";
 
 export function BandCard({ band, children }: { band: Band; children: ReactNode }) {
   return (
@@ -17,7 +19,8 @@ export function BandCard({ band, children }: { band: Band; children: ReactNode }
 export function RedFlag({ children }: { children: ReactNode }) {
   return (
     <View style={s.flag}>
-      <Text style={s.flagText}>🚩 {children}</Text>
+      <Icon name="flag-variant" size={16} color="#b42334" />
+      <Text style={s.flagText}>{children}</Text>
     </View>
   );
 }
@@ -25,8 +28,8 @@ export function RedFlag({ children }: { children: ReactNode }) {
 const s = StyleSheet.create({
   card: { borderRadius: radius.card, overflow: "hidden", borderWidth: 1, borderColor: colors.line, ...shadowCard },
   top: { paddingVertical: 13, paddingHorizontal: 16 },
-  topText: { color: "#fff", fontWeight: "700", fontSize: 15, letterSpacing: 0.3 },
+  topText: { color: "#fff", fontFamily: FONT.bold, fontSize: 15, letterSpacing: 0.3 },
   body: { backgroundColor: colors.panel, padding: 14 },
-  flag: { backgroundColor: colors.bandUrgentTint, borderWidth: 1, borderColor: "#f7c4ca", borderRadius: radius.product, padding: 10, marginVertical: 10 },
-  flagText: { color: "#b42334", fontSize: 12.5, lineHeight: 18 },
+  flag: { flexDirection: "row", gap: 8, alignItems: "flex-start", backgroundColor: colors.bandUrgentTint, borderWidth: 1, borderColor: "#f7c4ca", borderRadius: radius.product, padding: 10, marginVertical: 10 },
+  flagText: { flex: 1, color: "#b42334", fontSize: 12.5, lineHeight: 18, fontFamily: FONT.regular },
 });

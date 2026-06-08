@@ -1,30 +1,28 @@
-// Typography — BuddyCare uses "General Sans". Until the font files are bundled (expo-font),
-// we fall back to the system font; the SCALE below is the real, final spec either way.
+// Typography — Montserrat (bundled via @expo-google-fonts/montserrat, loaded at startup).
 import { TextStyle } from "react-native";
 import { colors } from "./theme";
 
-// General Sans family names (as they'll register once .otf files are added to assets/fonts).
-// Keep `undefined` for now → system font; swap to "GeneralSans-Regular" etc. when bundled.
-const FAMILY = {
-  regular: undefined as string | undefined,
-  medium: undefined as string | undefined,
-  semibold: undefined as string | undefined,
-};
+// Family names match the keys registered in app/_layout.tsx useFonts({...}).
+export const FONT = {
+  regular: "Montserrat_400Regular",
+  medium: "Montserrat_500Medium",
+  semibold: "Montserrat_600SemiBold",
+  bold: "Montserrat_700Bold",
+} as const;
 
 export const size = { xs: 12, sm: 14, md: 16, lg: 18, xl: 22, display: 28 } as const;
-const LH = 1.5;
+const LH = 1.4;
 
-const make = (fontSize: number, weight: TextStyle["fontWeight"], family?: string, color: string = colors.ink): TextStyle => ({
-  fontSize, fontWeight: weight, fontFamily: family, lineHeight: Math.round(fontSize * LH), color,
+const make = (fontSize: number, family: string, color: string = colors.ink): TextStyle => ({
+  fontSize, fontFamily: family, lineHeight: Math.round(fontSize * LH), color,
 });
 
-// Named text styles used across screens.
 export const type = {
-  display: make(size.display, "600", FAMILY.semibold),
-  title: make(size.lg, "600", FAMILY.semibold),
-  heading: make(size.md, "600", FAMILY.semibold),
-  body: make(size.sm, "400", FAMILY.regular),
-  bodyMedium: make(size.sm, "500", FAMILY.medium),
-  label: make(size.xs, "500", FAMILY.medium, colors.dim),
-  caption: make(size.xs, "400", FAMILY.regular, colors.muted),
+  display: make(size.display, FONT.bold),
+  title: make(size.lg, FONT.semibold),
+  heading: make(size.md, FONT.semibold),
+  body: make(size.sm, FONT.regular, colors.dim),
+  bodyMedium: make(size.sm, FONT.medium),
+  label: make(size.xs, FONT.medium, colors.dim),
+  caption: make(size.xs, FONT.regular, colors.muted),
 };
