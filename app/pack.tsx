@@ -1,14 +1,13 @@
-// Vet Visit Pack tab — preview of the shareable summary + export/share.
-import { ScrollView, Text, View, StyleSheet } from "react-native";
-import { useLocalSearchParams } from "expo-router";
-import { PETS } from "@/data/mock";
+// Vet Visit Pack — preview of the shareable summary + export/share. Reached from a pet's screen.
+import { Alert, Text, View, StyleSheet } from "react-native";
+import { useActivePet } from "@/store/app";
 import { Button, Card } from "@/ui/primitives";
+import { DetailScreen } from "@/ui/DetailScreen";
 import { colors } from "@/ui/theme";
-import { type } from "@/ui/type";
+import { type, FONT } from "@/ui/type";
 
 export default function Pack() {
-  const { petId } = useLocalSearchParams<{ petId: string }>();
-  const pet = PETS.find((p) => p.id === petId) ?? PETS[0];
+  const pet = useActivePet();
   const signalment = [pet.species, pet.breed, pet.ageLabel, pet.weightKg && `${pet.weightKg} kg`].filter(Boolean).join(" · ");
 
   const Line = ({ label, value }: { label: string; value: string }) => (
@@ -16,9 +15,7 @@ export default function Pack() {
   );
 
   return (
-    <ScrollView style={s.screen} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
-      <Text style={[type.title, { marginBottom: 10 }]}>Vet Visit Pack · {pet.name}</Text>
-
+    <DetailScreen title={`Vet Visit Pack · ${pet.name}`}>
       <Card style={s.preview}>
         <Text style={s.petName}>{pet.name} — {signalment}</Text>
         <Line label="Active problems" value="rear-left limb (osteomyelitis hx)" />
@@ -29,24 +26,23 @@ export default function Pack() {
       </Card>
 
       <Text style={[type.label, { marginTop: 14 }]}>Range</Text>
-      <View style={s.range}><Text style={{ color: colors.ink }}>last 90 days ▾</Text></View>
+      <View style={s.range}><Text style={{ color: colors.ink, fontFamily: FONT.regular }}>last 90 days ▾</Text></View>
 
       <View style={s.actions}>
-        <Button title="Export PDF" style={{ flex: 1 }} />
-        <Button title="Share" variant="ghost" style={{ flex: 1 }} />
+        <Button title="Export PDF" style={{ flex: 1 }} onPress={() => Alert.alert("Export PDF", "Generates the pack as a PDF on-device. Wires up in Phase 2.")} />
+        <Button title="Share" variant="ghost" style={{ flex: 1 }} onPress={() => Alert.alert("Share", "Opens the native share sheet. Wires up in Phase 2.")} />
       </View>
       <Text style={s.note}>Generated on-device · nothing leaves the phone</Text>
-    </ScrollView>
+    </DetailScreen>
   );
 }
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
   preview: { padding: 14 },
-  petName: { color: colors.ink, fontWeight: "600", fontSize: 14, marginBottom: 8 },
-  line: { color: colors.ink, fontSize: 12.5, lineHeight: 22 },
-  lineLabel: { fontWeight: "600" },
+  petName: { color: colors.ink, fontFamily: FONT.semibold, fontSize: 14, marginBottom: 8 },
+  line: { color: colors.ink, fontSize: 12.5, lineHeight: 22, fontFamily: FONT.regular },
+  lineLabel: { fontFamily: FONT.semibold },
   range: { backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.line, borderRadius: 12, padding: 11, marginTop: 4 },
   actions: { flexDirection: "row", gap: 10, marginTop: 14 },
-  note: { color: colors.muted, fontSize: 11.5, textAlign: "center", marginTop: 10 },
+  note: { color: colors.muted, fontSize: 11.5, textAlign: "center", marginTop: 10, fontFamily: FONT.regular },
 });

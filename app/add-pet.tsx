@@ -1,10 +1,12 @@
 // Add / edit pet form — multi-species, breed, sex, age, weight, photo placeholder.
 // UI phase: collects values and navigates back (no persistence yet).
 import { useState } from "react";
-import { Pressable, ScrollView, Text, View, StyleSheet } from "react-native";
+import { Alert, Pressable, Text, View, StyleSheet } from "react-native";
 import { router } from "expo-router";
 import { Species } from "@/data/types";
 import { Button, Field, Pill } from "@/ui/primitives";
+import { DetailScreen } from "@/ui/DetailScreen";
+import { Icon } from "@/ui/icons";
 import { colors } from "@/ui/theme";
 import { type } from "@/ui/type";
 
@@ -19,13 +21,10 @@ export default function AddPet() {
   const [weight, setWeight] = useState("");
 
   return (
-    <ScrollView style={s.screen} contentContainerStyle={{ padding: 16 }}>
-      <Pressable onPress={() => router.back()} hitSlop={8} style={{ marginBottom: 8 }}>
-        <Text style={{ color: colors.accent, fontSize: 14 }}>‹ back</Text>
+    <DetailScreen title="Add pet">
+      <Pressable style={s.photo} onPress={() => Alert.alert("Add photo", "Opens the camera / photo library. Wires up in Phase 2.")}>
+        <Icon name="camera-plus" size={28} color={colors.muted} />
       </Pressable>
-      <Text style={[type.title, { marginBottom: 12 }]}>Add pet</Text>
-
-      <View style={s.photo}><Text style={{ fontSize: 32, color: colors.muted }}>＋</Text></View>
       <Text style={s.photoHint}>add photo</Text>
 
       <Field label="Name *" placeholder="e.g. Toby" value={name} onChangeText={setName} />
@@ -41,22 +40,21 @@ export default function AddPet() {
 
       <Text style={s.label}>Sex</Text>
       <View style={s.segRow}>
-        <Pill label="♂ Male" active={sex === "m"} onPress={() => setSex(sex === "m" ? undefined : "m")} />
-        <Pill label="♀ Female" active={sex === "f"} onPress={() => setSex(sex === "f" ? undefined : "f")} />
+        <Pill label="Male" active={sex === "m"} onPress={() => setSex(sex === "m" ? undefined : "m")} />
+        <Pill label="Female" active={sex === "f"} onPress={() => setSex(sex === "f" ? undefined : "f")} />
       </View>
 
       <Field label="Age" placeholder="e.g. 7y" value={age} onChangeText={setAge} />
       <Field label="Weight (kg)" placeholder="e.g. 50" keyboardType="numeric" value={weight} onChangeText={setWeight} />
 
       <Button title="Save pet" onPress={() => router.replace("/")} style={{ marginTop: 6 }} />
-    </ScrollView>
+    </DetailScreen>
   );
 }
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
   photo: { alignSelf: "center", width: 72, height: 72, borderRadius: 18, backgroundColor: colors.accentTint, alignItems: "center", justifyContent: "center" },
-  photoHint: { textAlign: "center", color: colors.muted, fontSize: 11.5, marginTop: 4, marginBottom: 10 },
-  label: { color: colors.dim, fontSize: 12, marginBottom: 6 },
+  photoHint: { ...type.caption, textAlign: "center", marginTop: 4, marginBottom: 10 },
+  label: { ...type.label, marginBottom: 6 },
   segRow: { flexDirection: "row", gap: 8, marginBottom: 12 },
 });
