@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Stack } from "expo-router";
 import { View, ActivityIndicator } from "react-native";
 import {
@@ -7,6 +8,7 @@ import {
   Montserrat_600SemiBold,
   Montserrat_700Bold,
 } from "@expo-google-fonts/montserrat";
+import { useApp } from "@/store/app";
 import { colors } from "@/ui/theme";
 
 export default function RootLayout() {
@@ -17,7 +19,11 @@ export default function RootLayout() {
     Montserrat_700Bold,
   });
 
-  if (!fontsLoaded) {
+  const dbReady = useApp((s) => s.ready);
+  const initDb = useApp((s) => s.init);
+  useEffect(() => { initDb(); }, [initDb]);
+
+  if (!fontsLoaded || !dbReady) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.bg }}>
         <ActivityIndicator color={colors.accent} />
