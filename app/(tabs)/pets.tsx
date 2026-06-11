@@ -1,8 +1,7 @@
 // Pets tab — the active pet's detail: header card, risk chips, reminder banner, timeline feed.
 import { Pressable, ScrollView, Text, View, StyleSheet } from "react-native";
 import { router } from "expo-router";
-import { nextReminder, eventsFor } from "@/data/mock";
-import { useActivePet } from "@/store/app";
+import { useActivePet, useNextReminder, useEventsFor } from "@/store/app";
 import { Screen } from "@/ui/Screen";
 import { Chip } from "@/ui/primitives";
 import { EventRow } from "@/ui/EventRow";
@@ -13,7 +12,9 @@ import { type } from "@/ui/type";
 
 export default function Pets() {
   const pet = useActivePet();
-  const reminder = nextReminder(pet.id);
+  const reminder = useNextReminder(pet?.id ?? "");
+  const events = useEventsFor(pet?.id ?? "");
+  if (!pet) return <Screen title="Pets"><View /></Screen>;
   const signalment = [pet.species, pet.breed, pet.ageLabel, pet.weightKg && `${pet.weightKg} kg`].filter(Boolean).join(" · ");
 
   return (
@@ -53,7 +54,7 @@ export default function Pets() {
         </View>
 
         <View style={s.feed}>
-          {eventsFor(pet.id).map((e) => (
+          {events.map((e) => (
             <EventRow key={e.id} event={e} onPress={() => router.push(`/event/${e.id}`)} />
           ))}
         </View>

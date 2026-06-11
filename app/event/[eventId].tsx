@@ -2,8 +2,8 @@
 // confidence, and correct/delete actions. Correcting appends a new event (audit trail).
 import { Alert, Text, View, StyleSheet } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { EVENTS, petById } from "@/data/mock";
 import { EventSource } from "@/data/types";
+import { useApp, useEventById, usePetById } from "@/store/app";
 import { Button, Card } from "@/ui/primitives";
 import { DetailScreen } from "@/ui/DetailScreen";
 import { Icon, kindIcon } from "@/ui/icons";
@@ -19,7 +19,9 @@ const CONFIDENCE: Partial<Record<EventSource, string>> = { voice: "86%", ocr: "9
 
 export default function EventDetail() {
   const { eventId } = useLocalSearchParams<{ eventId: string }>();
-  const event = EVENTS.find((e) => e.id === eventId);
+  const event = useEventById(eventId);
+  const pet = usePetById(event?.petId ?? "");
+  const deleteEvent = useApp((s) => s.deleteEvent);
 
   if (!event) {
     return (
@@ -29,7 +31,6 @@ export default function EventDetail() {
     );
   }
 
-  const pet = petById(event.petId);
   const confidence = CONFIDENCE[event.source];
 
   const Row = ({ label, value }: { label: string; value: string }) => (
@@ -65,7 +66,11 @@ export default function EventDetail() {
 
       <View style={s.actions}>
         <Button title="Correct" variant="ghost" style={{ flex: 1 }} onPress={() => router.push("/add-event")} />
-        <Button title="Delete" variant="ghost" style={[{ flex: 1 }, s.delete]} onPress={() => router.back()} />
+        <Button title="Delete" variant="ghost" style={[{ flex: 1 }, s.delete]}
+          onPress={() => Alert.alert("Delete event?", "The original is kept in the record; this appends a deletion.", [
+            { text: "Cancel", style: "cancel" },
+            { text: "Delete", style: "destructive", onPress: () => { deleteEvent(event.id); router.back(); } },
+          ])} />
       </View>
       <Text style={s.note}>Correcting appends a new event — the original is kept for the record.</Text>
     </DetailScreen>

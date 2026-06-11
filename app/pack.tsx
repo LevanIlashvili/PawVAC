@@ -8,6 +8,7 @@ import { type, FONT } from "@/ui/type";
 
 export default function Pack() {
   const pet = useActivePet();
+  if (!pet) return <DetailScreen title="Vet Visit Pack"><Text style={type.body}>No pet selected.</Text></DetailScreen>;
   const signalment = [pet.species, pet.breed, pet.ageLabel, pet.weightKg && `${pet.weightKg} kg`].filter(Boolean).join(" · ");
 
   const Line = ({ label, value }: { label: string; value: string }) => (

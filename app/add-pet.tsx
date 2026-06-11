@@ -1,9 +1,10 @@
-// Add / edit pet form — multi-species, breed, sex, age, weight, photo placeholder.
-// UI phase: collects values and navigates back (no persistence yet).
+// Add pet form — multi-species, breed, sex, age, weight, photo placeholder.
+// Persists to SQLite via the store; photo picker lands in a later phase.
 import { useState } from "react";
 import { Alert, Pressable, Text, View, StyleSheet } from "react-native";
 import { router } from "expo-router";
 import { Species } from "@/data/types";
+import { useApp } from "@/store/app";
 import { Button, Field, Pill } from "@/ui/primitives";
 import { DetailScreen } from "@/ui/DetailScreen";
 import { Icon } from "@/ui/icons";
@@ -11,14 +12,27 @@ import { colors } from "@/ui/theme";
 import { type } from "@/ui/type";
 
 const SPECIES: Species[] = ["dog", "cat", "other"];
+const PLACEHOLDER_COLOR = "#E8853F";
 
 export default function AddPet() {
+  const addPet = useApp((s) => s.addPet);
   const [name, setName] = useState("");
   const [species, setSpecies] = useState<Species>("dog");
   const [breed, setBreed] = useState("");
   const [sex, setSex] = useState<"m" | "f" | undefined>();
   const [age, setAge] = useState("");
   const [weight, setWeight] = useState("");
+
+  const save = () => {
+    if (!name.trim()) { Alert.alert("Name required", "Give your pet a name."); return; }
+    addPet({
+      name: name.trim(), species, breed: breed.trim() || undefined, sex,
+      ageLabel: age.trim() || undefined,
+      weightKg: weight ? Number(weight) : undefined,
+      riskFlags: [], color: PLACEHOLDER_COLOR,
+    });
+    router.replace("/");
+  };
 
   return (
     <DetailScreen title="Add pet">
@@ -47,7 +61,7 @@ export default function AddPet() {
       <Field label="Age" placeholder="e.g. 7y" value={age} onChangeText={setAge} />
       <Field label="Weight (kg)" placeholder="e.g. 50" keyboardType="numeric" value={weight} onChangeText={setWeight} />
 
-      <Button title="Save pet" onPress={() => router.replace("/")} style={{ marginTop: 6 }} />
+      <Button title="Save pet" onPress={save} style={{ marginTop: 6 }} />
     </DetailScreen>
   );
 }

@@ -1,9 +1,8 @@
 // Reminders tab — active reminders for the active pet, with snooze/done actions
 // and a New Reminder bottom sheet.
 import { useState } from "react";
-import { Alert, Modal, Pressable, Text, TextInput, View, StyleSheet } from "react-native";
-import { remindersFor } from "@/data/mock";
-import { useActivePet } from "@/store/app";
+import { Modal, Pressable, Text, View, StyleSheet } from "react-native";
+import { useApp, useActivePet, useRemindersFor } from "@/store/app";
 import { Screen } from "@/ui/Screen";
 import { Button, Card, Field } from "@/ui/primitives";
 import { Icon, ui } from "@/ui/icons";
@@ -14,8 +13,11 @@ const SCHEDULES = ["Once a day", "Twice a day", "Weekly", "Monthly", "Annual"];
 
 export default function Reminders() {
   const pet = useActivePet();
-  const reminders = remindersFor(pet.id);
+  const reminders = useRemindersFor(pet?.id ?? "");
+  const snooze = useApp((s) => s.snoozeReminder);
+  const markDone = useApp((s) => s.setReminderDone);
   const [sheetOpen, setSheetOpen] = useState(false);
+  if (!pet) return <Screen title="Reminders"><View /></Screen>;
 
   return (
     <Screen title={`${pet.name} · Reminders`}>
@@ -24,6 +26,7 @@ export default function Reminders() {
 
         {reminders.map((r) => {
           const isMed = /clind|mg|tablet|pill|dose|daily|day/i.test(`${r.title} ${r.schedule}`);
+          const done = r.nextLabel.startsWith("✓");
           return (
             <Card key={r.id} style={s.card}>
               <View style={s.row}>
@@ -37,12 +40,12 @@ export default function Reminders() {
                   title="snooze"
                   variant="ghost"
                   style={{ paddingVertical: 8, paddingHorizontal: 14, flexGrow: 0 }}
-                  onPress={() => Alert.alert("Snoozed", `${r.title} pushed to tomorrow.`)}
+                  onPress={() => snooze(r.id, "tomorrow")}
                 />
                 <Button
-                  title="done"
+                  title={done ? "done ✓" : "done"}
                   style={{ paddingVertical: 8, paddingHorizontal: 14, flexGrow: 0 }}
-                  onPress={() => Alert.alert("Marked done", `Logged this dose of ${r.title}.`)}
+                  onPress={() => markDone(r.id, !done)}
                 />
               </View>
             </Card>
@@ -53,18 +56,24 @@ export default function Reminders() {
         <Text style={s.note}>Fires offline · survives reboot · once per dose</Text>
       </View>
 
-      <NewReminderSheet open={sheetOpen} petName={pet.name} onClose={() => setSheetOpen(false)} />
+      <NewReminderSheet open={sheetOpen} petId={pet.id} onClose={() => setSheetOpen(false)} />
     </Screen>
   );
 }
 
-function NewReminderSheet({ open, petName, onClose }: { open: boolean; petName: string; onClose: () => void }) {
+function NewReminderSheet({ open, petId, onClose }: { open: boolean; petId: string; onClose: () => void }) {
+  const addReminder = useApp((s) => s.addReminder);
   const [title, setTitle] = useState("");
   const [schedule, setSchedule] = useState(SCHEDULES[1]);
   const [time, setTime] = useState("");
 
   const save = () => {
-    Alert.alert("Reminder set", `${title || "Reminder"} · ${schedule}${time ? ` at ${time}` : ""} for ${petName}.`);
+    addReminder({
+      petId,
+      title: title || "Reminder",
+      schedule,
+      nextLabel: time ? `today ${time}` : "scheduled",
+    });
     setTitle(""); setTime("");
     onClose();
   };

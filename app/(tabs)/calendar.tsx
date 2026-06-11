@@ -3,8 +3,7 @@ import { useMemo, useState } from "react";
 import { Pressable, Text, View, StyleSheet } from "react-native";
 import { router } from "expo-router";
 import { Calendar as RNCalendar } from "react-native-calendars";
-import { PETS, petById, calendarFor, itemsOn } from "@/data/mock";
-import { useApp } from "@/store/app";
+import { useApp, usePets, useCalendar } from "@/store/app";
 import { Screen } from "@/ui/Screen";
 import { Card } from "@/ui/primitives";
 import { Icon, kindIcon } from "@/ui/icons";
@@ -15,20 +14,25 @@ const TODAY = "2026-06-21";
 
 export default function CalendarTab() {
   const setActivePet = useApp((s) => s.setActivePet);
+  const PETS = usePets();
+  const allItems = useCalendar();
+  const petById = (id: string) => PETS.find((p) => p.id === id);
   const [petFilter, setPetFilter] = useState<string | undefined>(undefined);
   const [selected, setSelected] = useState(TODAY);
 
+  const scoped = petFilter ? allItems.filter((c) => c.petId === petFilter) : allItems;
+
   const marked = useMemo(() => {
     const m: Record<string, { dots: { key: string; color: string }[]; selected?: boolean; selectedColor?: string }> = {};
-    for (const c of calendarFor(petFilter)) {
+    for (const c of scoped) {
       const color = petById(c.petId)?.color ?? colors.accent;
       (m[c.date] ??= { dots: [] }).dots.push({ key: c.id, color });
     }
     m[selected] = { ...(m[selected] ?? { dots: [] }), selected: true, selectedColor: colors.accent };
     return m;
-  }, [petFilter, selected]);
+  }, [scoped, selected]);
 
-  const dayItems = itemsOn(selected, petFilter);
+  const dayItems = scoped.filter((c) => c.date === selected);
 
   return (
     <Screen title="Calendar">

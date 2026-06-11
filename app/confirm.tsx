@@ -2,29 +2,43 @@
 // explicitly confirmed; nothing is written to the record until the user taps Save.
 import { Text, View, StyleSheet } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
+import { useApp, useActivePet } from "@/store/app";
 import { Button, Card } from "@/ui/primitives";
 import { DetailScreen } from "@/ui/DetailScreen";
 import { Icon, kindIcon } from "@/ui/icons";
 import { colors, radius } from "@/ui/theme";
 import { type } from "@/ui/type";
 
+// Mock-parsed result (real Whisper/OCR extraction comes with QVAC in the next phase).
 const PARSED = [
-  { kind: "symptom" as const, label: "Symptom: limping rear-left" },
-  { kind: "meal" as const, label: "Meal: declined breakfast" },
+  { kind: "symptom" as const, summary: "limping rear-left" },
+  { kind: "meal" as const, summary: "declined breakfast" },
 ];
 
 export default function Confirm() {
   const { source } = useLocalSearchParams<{ source?: string }>();
-  const sourceLabel = source === "ocr" ? "document scan · 91% confidence" : "voice · 86% confidence";
+  const pet = useActivePet();
+  const addEvent = useApp((s) => s.addEvent);
+  const src = source === "ocr" ? "ocr" : "voice";
+  const sourceLabel = src === "ocr" ? "document scan · 91% confidence" : "voice · 86% confidence";
+
+  const saveAll = () => {
+    if (pet) {
+      PARSED.forEach((p) =>
+        addEvent({ petId: pet.id, kind: p.kind, summary: p.summary, dateLabel: "today", source: src, confirmed: true })
+      );
+    }
+    router.dismissAll();
+  };
 
   return (
     <DetailScreen title="Review before saving">
       <Text style={[type.caption, { marginBottom: 14 }]}>From {sourceLabel}</Text>
 
       {PARSED.map((p) => (
-        <Card key={p.label} style={s.row}>
+        <Card key={p.summary} style={s.row}>
           <View style={s.iconWrap}><Icon name={kindIcon[p.kind]} size={18} color={colors.accent} /></View>
-          <Text style={s.rowText}>{p.label}</Text>
+          <Text style={s.rowText}>{p.kind}: {p.summary}</Text>
           <Text style={s.edit}>edit</Text>
         </Card>
       ))}
@@ -39,7 +53,7 @@ export default function Confirm() {
 
       <View style={s.actions}>
         <Button title="Discard" variant="ghost" style={{ flex: 1 }} onPress={() => router.dismissAll()} />
-        <Button title="Confirm & save" style={{ flex: 1 }} onPress={() => router.dismissAll()} />
+        <Button title="Confirm & save" style={{ flex: 1 }} onPress={saveAll} />
       </View>
     </DetailScreen>
   );

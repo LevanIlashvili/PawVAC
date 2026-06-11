@@ -2,8 +2,7 @@
 // Rendered by the (tabs) layout so every tab gets the same chrome.
 import { Pressable, ScrollView, Text, View, StyleSheet } from "react-native";
 import { router } from "expo-router";
-import { PETS } from "@/data/mock";
-import { useApp } from "@/store/app";
+import { useApp, usePets } from "@/store/app";
 import { colors } from "./theme";
 import { Icon, speciesIcon, ui } from "./icons";
 import { type } from "./type";
@@ -11,6 +10,7 @@ import { type } from "./type";
 export function AppHeader({ title, showSwitcher = true }: { title: string; showSwitcher?: boolean }) {
   const activePetId = useApp((s) => s.activePetId);
   const setActivePet = useApp((s) => s.setActivePet);
+  const PETS = usePets();
 
   return (
     <View style={s.wrap}>

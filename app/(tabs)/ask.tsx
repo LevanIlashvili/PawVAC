@@ -17,6 +17,7 @@ export default function Ask() {
   const [mode, setMode] = useState<Mode>("triage");
   const [q, setQ] = useState("");
   const [asked, setAsked] = useState(false);
+  if (!pet) return <Screen title="Ask"><View /></Screen>;
 
   return (
     <Screen title={`Ask about ${pet.name}`}>

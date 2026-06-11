@@ -2,18 +2,20 @@
 import { useState } from "react";
 import { Pressable, Text, View, StyleSheet } from "react-native";
 import { router, Redirect } from "expo-router";
-import { PETS, petById, calendarFor, itemsOn } from "@/data/mock";
-import { useApp } from "@/store/app";
+import { useApp, usePets, useCalendar } from "@/store/app";
 import { Screen } from "@/ui/Screen";
 import { Icon, speciesIcon, kindIcon } from "@/ui/icons";
 import { colors, radius, shadowCard } from "@/ui/theme";
 import { type } from "@/ui/type";
 
-const TODAY = "2026-06-21"; // UI phase: fixed "today" so mock data lines up.
+const TODAY = "2026-06-21"; // UI phase: fixed "today" so seeded data lines up.
 
 export default function Home() {
   const setActivePet = useApp((s) => s.setActivePet);
-  const todays = itemsOn(TODAY);
+  const PETS = usePets();
+  const calendar = useCalendar();
+  const petById = (id: string) => PETS.find((p) => p.id === id);
+  const todays = calendar.filter((c) => c.date === TODAY);
 
   // First-run: no pets yet → welcome screen.
   if (PETS.length === 0) return <Redirect href="/welcome" />;
@@ -55,7 +57,7 @@ export default function Home() {
       <Text style={[type.heading, s.sectionTitle]}>Pets</Text>
       <View style={s.petGrid}>
         {PETS.map((p) => {
-          const next = calendarFor(p.id).find((c) => c.date >= TODAY && !c.done);
+          const next = calendar.filter((c) => c.petId === p.id).find((c) => c.date >= TODAY && !c.done);
           return (
             <Pressable key={p.id} onPress={() => openPet(p.id)} style={s.petCard}>
               <View style={[s.petIcon, { backgroundColor: p.color + "22" }]}>

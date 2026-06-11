@@ -1,8 +1,9 @@
-// Manual Add-Event: kind picker grid → per-kind form. UI phase: collects, navigates back.
+// Manual Add-Event: kind picker grid → per-kind form. Persists to SQLite via the store.
 import { useState } from "react";
 import { Pressable, Text, View, StyleSheet } from "react-native";
 import { router } from "expo-router";
 import { EventKind } from "@/data/types";
+import { useApp, useActivePet } from "@/store/app";
 import { Button, Field } from "@/ui/primitives";
 import { DetailScreen } from "@/ui/DetailScreen";
 import { KIND_LABEL, MANUAL_KINDS, kindFields } from "@/ui/kindForms";
@@ -11,10 +12,21 @@ import { colors, radius, shadowCard } from "@/ui/theme";
 import { type } from "@/ui/type";
 
 export default function AddEvent() {
+  const pet = useActivePet();
+  const addEvent = useApp((s) => s.addEvent);
   const [kind, setKind] = useState<EventKind | null>(null);
   const [values, setValues] = useState<Record<string, string>>({});
 
   const back = () => (kind ? setKind(null) : router.back());
+
+  const save = () => {
+    if (!kind || !pet) return;
+    // build a one-line summary from the filled fields (first non-empty values)
+    const parts = kindFields(kind).map((f) => values[f.key]?.trim()).filter(Boolean);
+    const summary = parts.length ? parts.join(" · ") : KIND_LABEL[kind];
+    addEvent({ petId: pet.id, kind, summary, dateLabel: "today", source: "manual", confirmed: true });
+    router.replace("/pets");
+  };
 
   return (
     <DetailScreen title={kind ? KIND_LABEL[kind] : "What happened?"} onBack={back}>
@@ -40,7 +52,7 @@ export default function AddEvent() {
               onChangeText={(t) => setValues((v) => ({ ...v, [f.key]: t }))}
             />
           ))}
-          <Button title="Save" onPress={() => router.replace("/")} style={{ marginTop: 6 }} />
+          <Button title="Save" onPress={save} style={{ marginTop: 6 }} />
         </>
       )}
     </DetailScreen>
