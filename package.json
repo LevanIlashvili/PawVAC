@@ -4,6 +4,7 @@
   "main": "expo-router/entry",
   "dependencies": {
     "@expo-google-fonts/montserrat": "^0.4.2",
+    "@expo/config-plugins": "^56.0.9",
     "@expo/vector-icons": "^15.1.1",
     "@qvac/sdk": "^0.13.5",
     "expo": "^56.0.12",
