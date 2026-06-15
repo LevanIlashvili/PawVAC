@@ -5,7 +5,9 @@
   "dependencies": {
     "@expo-google-fonts/montserrat": "^0.4.2",
     "@expo/vector-icons": "^15.1.1",
+    "@qvac/sdk": "^0.13.5",
     "expo": "^56.0.12",
+    "expo-build-properties": "~56.0.19",
     "expo-constants": "~56.0.18",
     "expo-dev-client": "~56.0.20",
     "expo-font": "~56.0.7",
@@ -15,6 +17,7 @@
     "expo-status-bar": "~56.0.4",
     "react": "19.2.3",
     "react-native": "0.85.3",
+    "react-native-bare-kit": "^0.14.5",
     "react-native-calendars": "^1.1314.0",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "4.25.2",
