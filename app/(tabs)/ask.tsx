@@ -1,8 +1,10 @@
 // Ask tab — two modes: triage ("should I worry?") and understand-a-diagnosis. Acts on the active pet.
+// Runs the on-device clinician (RAG → MedGemma → Guardian) and renders the banded result.
 import { useState } from "react";
-import { Alert, Pressable, Text, TextInput, View, StyleSheet } from "react-native";
+import { ActivityIndicator, Pressable, Text, TextInput, View, StyleSheet } from "react-native";
 import { router } from "expo-router";
-import { useActivePet } from "@/store/app";
+import { useApp, useActivePet, useEventsFor } from "@/store/app";
+import { runTriage, TriageResult } from "@/ai/clinician";
 import { Screen } from "@/ui/Screen";
 import { Button, Pill } from "@/ui/primitives";
 import { BandCard, RedFlag } from "@/ui/BandCard";
@@ -14,10 +16,32 @@ type Mode = "triage" | "diagnosis";
 
 export default function Ask() {
   const pet = useActivePet();
+  const events = useEventsFor(pet?.id ?? "");
+  const addEvent = useApp((s) => s.addEvent);
   const [mode, setMode] = useState<Mode>("triage");
   const [q, setQ] = useState("");
-  const [asked, setAsked] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<TriageResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
   if (!pet) return <Screen title="Ask"><View /></Screen>;
+
+  const ask = async () => {
+    if (!q.trim()) return;
+    setLoading(true); setError(null); setResult(null);
+    try {
+      setResult(await runTriage(pet, events, q.trim()));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong running on-device.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const logResult = () => {
+    if (!result) return;
+    addEvent({ petId: pet.id, kind: "triage", summary: `${q.trim()} — ${result.band.replace("_", " ")}`, dateLabel: "today", source: "agent", confirmed: true });
+    router.push("/pets");
+  };
 
   return (
     <Screen title={`Ask about ${pet.name}`}>
@@ -39,25 +63,32 @@ export default function Ask() {
           <Pressable hitSlop={8} onPress={() => router.push("/voice")}><Icon name={ui.mic} size={20} color={colors.accent} /></Pressable>
         </View>
 
-        <Button title="Ask" onPress={() => setAsked(true)} style={{ marginTop: 6 }} />
+        <Button title={loading ? "Thinking…" : "Ask"} onPress={ask} style={{ marginTop: 6 }} />
 
-        {asked && (
+        {loading && (
+          <View style={s.loading}>
+            <ActivityIndicator color={colors.accent} />
+            <Text style={s.loadingText}>Reading {pet.name}'s record on-device…</Text>
+          </View>
+        )}
+
+        {error && <Text style={s.error}>{error}</Text>}
+
+        {result && (
           <View style={{ marginTop: 16 }}>
-            <BandCard band="vet_soon">
-              <Text style={s.cardBody}>
-                Ties to the rear-left osteomyelitis (Mar 2024) and today's limp + off food.
-              </Text>
-              <RedFlag>
-                Rule out bloat (GDV). A deep-chested dog going off food can mask early bloat — swollen/hard
-                belly or unproductive retching = emergency, go now.
-              </RedFlag>
-              <Text style={s.cardLabel}>Ask your vet:</Text>
-              <Text style={s.bullet}>• Same limb as the osteomyelitis?</Text>
-              <Text style={s.bullet}>• Any abdominal distension or retching?</Text>
-              <Text style={s.bullet}>• Fever?</Text>
+            <BandCard band={result.band}>
+              {result.rationale ? <Text style={s.cardBody}>{result.rationale}</Text> : null}
+              {result.redFlagBoxes.map((rf) => <RedFlag key={rf}>{rf}</RedFlag>)}
+              {result.askYourVet.length > 0 && (
+                <>
+                  <Text style={s.cardLabel}>Ask your vet:</Text>
+                  {result.askYourVet.map((a) => <Text key={a} style={s.bullet}>• {a}</Text>)}
+                </>
+              )}
+              {result.instant ? <Text style={s.instant}>Shown instantly — deterministic safety match, no model needed.</Text> : null}
             </BandCard>
             <View style={s.cardActions}>
-              <Button title="Log this" variant="ghost" style={{ flex: 1 }} onPress={() => Alert.alert("Logged", "Added this triage to the timeline.")} />
+              <Button title="Log this" variant="ghost" style={{ flex: 1 }} onPress={logResult} />
               <Button title="Vet Pack" onPress={() => router.push("/pack")} style={{ flex: 1 }} />
             </View>
           </View>
@@ -82,4 +113,8 @@ const s = StyleSheet.create({
   cardLabel: { color: colors.ink, fontSize: 13.5, fontFamily: FONT.semibold, marginTop: 2 },
   bullet: { color: colors.dim, fontSize: 13, marginTop: 3, fontFamily: FONT.regular },
   cardActions: { flexDirection: "row", gap: 10, marginTop: 12 },
+  loading: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 16 },
+  loadingText: { ...type.caption },
+  error: { ...type.caption, color: colors.bandUrgent, marginTop: 12 },
+  instant: { ...type.caption, marginTop: 8 },
 });
