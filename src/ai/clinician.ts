@@ -1,0 +1,94 @@
+// The Clinician pipeline (ported from POC 7, validated): preScan → RAG → MedGemma
+// (few-shot banding rubric + JSON-schema output) → deterministic Guardian.
+// Never diagnoses, never doses. The band is a proposal; the Guardian can only upgrade it.
+import { completion } from "@qvac/sdk";
+import { Pet, TimelineEvent } from "@/data/types";
+import { getClinician } from "./models";
+import { ingestPetRecord, searchPetRecord, citedIds } from "./rag";
+import { preScan, guardianReview, Band } from "./guardian";
+
+const CLINICIAN_SYSTEM = `You are the clinical reasoning component of a pet-owner's record-keeping app.
+You are NOT a veterinarian and you do NOT diagnose. You help an owner decide how urgently to seek
+veterinary care and what to tell their vet.
+HARD RULES:
+- Never state a definitive diagnosis. Never give a drug or a dose.
+- Reason ONLY from the CONTEXT provided (the pet's own record). Cite the [eN] ids you used.
+- When unsure, choose the MORE cautious band.
+BANDING RUBRIC (choose by URGENCY, not worst-case; a serious HISTORY alone does not raise the band):
+- home_monitor: minor, self-limiting, otherwise well.
+- vet_soon: persistent/worsening, repeated vomiting, limp >1 day, off food, PU/PD, likely infection.
+- vet_urgent: bloat signs, blocked-cat urinary, collapse, seizure, dyspnea, pale gums, toxin, bleeding.
+Output JSON only. Your band is a PROPOSAL; a safety layer may upgrade it, never lower it.`;
+
+const BAND_SCHEMA = {
+  type: "object",
+  properties: {
+    band: { type: "string", enum: ["home_monitor", "vet_soon", "vet_urgent"] },
+    rationale: { type: "string" },
+    ask_your_vet: { type: "array", items: { type: "string" } },
+    cited_event_ids: { type: "array", items: { type: "string" } },
+    confidence: { type: "number" },
+  },
+  required: ["band", "rationale", "ask_your_vet", "cited_event_ids", "confidence"],
+  additionalProperties: false,
+} as const;
+
+export interface TriageResult {
+  band: Band;
+  rationale: string;
+  askYourVet: string[];
+  citedIds: string[];
+  redFlagBoxes: string[];
+  upgraded: boolean;
+  instant: boolean; // true = deterministic Guardian fired before any model ran
+}
+
+const signalment = (p: Pet) =>
+  [p.species, p.breed, p.ageLabel, p.weightKg && `${p.weightKg} kg`, ...(p.riskFlags ?? [])].filter(Boolean).join(", ");
+
+export async function runTriage(pet: Pet, events: TimelineEvent[], question: string): Promise<TriageResult> {
+  // 1) Deterministic pre-scan — toxins/crises trip an instant URGENT, no model wait (I8).
+  const pre = preScan(question, pet);
+  if (pre.trip) {
+    return {
+      band: pre.band!, rationale: pre.reason ?? "", askYourVet: [],
+      citedIds: [], redFlagBoxes: pre.reason ? [pre.reason] : [], upgraded: true, instant: true,
+    };
+  }
+
+  // 2) Retrieve from the pet's own record (I4).
+  await ingestPetRecord(pet.id, events);
+  const hits = await searchPetRecord(pet.id, question, 4);
+  const ctx = hits.map((h) => h.content).join("\n");
+
+  // 3) Reason — MedGemma grounded only on retrieved context, structured output.
+  const modelId = await getClinician();
+  const run = completion({
+    modelId,
+    history: [
+      { role: "system", content: `${CLINICIAN_SYSTEM}\nThe pet is a ${signalment(pet)}. Reason for THIS animal.` },
+      { role: "user", content: `CONTEXT (retrieved from this pet's record):\n${ctx}\n\nOWNER QUESTION: ${question}\n\nReturn the JSON.` },
+    ],
+    stream: false,
+    responseFormat: { type: "json_schema", json_schema: { name: "triage", schema: BAND_SCHEMA, strict: true } },
+  });
+  const final = await run.final;
+  let draft: any = {};
+  try { draft = JSON.parse(final.contentText ?? "{}"); } catch { /* malformed → guardian floors it */ }
+
+  // 4) Guard — deterministic floor/upgrade + dose strip.
+  const guarded = guardianReview(
+    { band: draft.band, rationale: draft.rationale, confidence: draft.confidence },
+    pet, pre
+  );
+
+  return {
+    band: guarded.band,
+    rationale: guarded.rationale,
+    askYourVet: Array.isArray(draft.ask_your_vet) ? draft.ask_your_vet : [],
+    citedIds: Array.isArray(draft.cited_event_ids) && draft.cited_event_ids.length ? draft.cited_event_ids : citedIds(hits),
+    redFlagBoxes: guarded.redFlagBoxes,
+    upgraded: guarded.upgraded,
+    instant: false,
+  };
+}
