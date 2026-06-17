@@ -34,6 +34,17 @@
           }
         }
       ],
+      [
+        "expo-audio",
+        { "microphonePermission": "PawVac uses the mic to transcribe your voice notes on-device." }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "PawVac uses the camera to scan vet documents on-device.",
+          "photosPermission": "PawVac reads document images you choose, on-device."
+        }
+      ],
       "@qvac/sdk/expo-plugin"
     ]
   }

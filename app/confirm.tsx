@@ -9,22 +9,31 @@ import { Icon, kindIcon } from "@/ui/icons";
 import { colors, radius } from "@/ui/theme";
 import { type } from "@/ui/type";
 
-// Mock-parsed result (real Whisper/OCR extraction comes with QVAC in the next phase).
-const PARSED = [
-  { kind: "symptom" as const, summary: "limping rear-left" },
-  { kind: "meal" as const, summary: "declined breakfast" },
-];
+import { EventKind } from "@/data/types";
+
+// Lightweight structuring of the captured text into a draft event. (Full LLM scribe
+// extraction is a later refinement; the captured transcript/OCR text is real.)
+function draftEvent(text: string, src: "ocr" | "voice"): { kind: EventKind; summary: string } {
+  const t = text.toLowerCase();
+  if (src === "ocr" || /clinic|discharge|mg |dose|diagnos/i.test(t)) return { kind: "document", summary: text };
+  if (/limp|vomit|diarr|cough|itch|letharg|off (his|her)? ?food|not eating|pain|swell/i.test(t)) return { kind: "symptom", summary: text };
+  return { kind: "note", summary: text };
+}
 
 export default function Confirm() {
-  const { source } = useLocalSearchParams<{ source?: string }>();
+  const { source, text } = useLocalSearchParams<{ source?: string; text?: string }>();
   const pet = useActivePet();
   const addEvent = useApp((s) => s.addEvent);
   const src = source === "ocr" ? "ocr" : "voice";
-  const sourceLabel = src === "ocr" ? "document scan · 91% confidence" : "voice · 86% confidence";
+  const sourceLabel = src === "ocr" ? "document scan" : "voice";
+  const captured = (text ?? "").trim();
+  const parsed = captured ? [draftEvent(captured, src)] : [
+    { kind: "symptom" as EventKind, summary: "limping rear-left" },
+  ];
 
   const saveAll = () => {
     if (pet) {
-      PARSED.forEach((p) =>
+      parsed.forEach((p) =>
         addEvent({ petId: pet.id, kind: p.kind, summary: p.summary, dateLabel: "today", source: src, confirmed: true })
       );
     }
@@ -35,10 +44,10 @@ export default function Confirm() {
     <DetailScreen title="Review before saving">
       <Text style={[type.caption, { marginBottom: 14 }]}>From {sourceLabel}</Text>
 
-      {PARSED.map((p) => (
+      {parsed.map((p) => (
         <Card key={p.summary} style={s.row}>
           <View style={s.iconWrap}><Icon name={kindIcon[p.kind]} size={18} color={colors.accent} /></View>
-          <Text style={s.rowText}>{p.kind}: {p.summary}</Text>
+          <Text style={s.rowText} numberOfLines={3}>{p.kind}: {p.summary}</Text>
           <Text style={s.edit}>edit</Text>
         </Card>
       ))}
