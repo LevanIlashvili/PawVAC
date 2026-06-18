@@ -17,6 +17,7 @@ export interface Pet {
   weightKg?: number;
   riskFlags: string[];
   color: string;         // dashboard color-coding (calendar dots, status cards)
+  photoUri?: string;     // local image uri (expo-image-picker), optional
 }
 
 // A scheduled, dated item shown on the dashboard calendar/agenda (med dose, vaccine, appt).
@@ -47,4 +48,5 @@ export interface Reminder {
   schedule: string;      // e.g. "twice a day"
   nextLabel: string;     // e.g. "today 8:00 pm"
   remainingLabel?: string;
+  done?: boolean;
 }

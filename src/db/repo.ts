@@ -3,13 +3,14 @@
 import { db } from "./schema";
 import { Pet, TimelineEvent, Reminder, CalendarItem, EventKind, EventSource, Species } from "@/data/types";
 
-let _counter = 0;
-// id generator that avoids Date.now()/Math.random() requirements; monotonic per session,
-// seeded off existing row count so it stays unique across restarts.
+// Globally-unique id from a persistent monotonic sequence in the meta table — survives restarts
+// and never collides across entity types (no Date.now()/Math.random() needed).
 function genId(prefix: string): string {
-  _counter += 1;
-  const base = db().getFirstSync<{ c: number }>(`SELECT COUNT(*) AS c FROM events`)?.c ?? 0;
-  return `${prefix}_${base + _counter}_${prefix.length}${_counter}`;
+  const d = db();
+  const row = d.getFirstSync<{ value: string }>(`SELECT value FROM meta WHERE key = 'id_seq'`);
+  const next = (row ? parseInt(row.value, 10) : 0) + 1;
+  d.runSync(`INSERT OR REPLACE INTO meta (key, value) VALUES ('id_seq', ?)`, [String(next)]);
+  return `${prefix}_${next}`;
 }
 function now(): number {
   return db().getFirstSync<{ t: number }>(`SELECT strftime('%s','now') AS t`)?.t ?? 0;
@@ -20,6 +21,7 @@ const toPet = (r: any): Pet => ({
   id: r.id, name: r.name, species: r.species as Species, breed: r.breed ?? undefined,
   sex: r.sex ?? undefined, ageLabel: r.age_label ?? undefined,
   weightKg: r.weight_kg ?? undefined, riskFlags: JSON.parse(r.risk_flags || "[]"), color: r.color,
+  photoUri: r.photo_uri ?? undefined,
 });
 const toEvent = (r: any): TimelineEvent => ({
   id: r.id, petId: r.pet_id, kind: r.kind as EventKind, summary: r.summary,
@@ -27,7 +29,7 @@ const toEvent = (r: any): TimelineEvent => ({
 });
 const toReminder = (r: any): Reminder => ({
   id: r.id, petId: r.pet_id, title: r.title, schedule: r.schedule,
-  nextLabel: r.next_label, remainingLabel: r.remaining_label ?? undefined,
+  nextLabel: r.next_label, remainingLabel: r.remaining_label ?? undefined, done: !!r.done,
 });
 const toCalendarItem = (r: any): CalendarItem => ({
   id: r.id, petId: r.pet_id, date: r.date, kind: r.kind as EventKind,
@@ -43,10 +45,10 @@ export const getPet = (id: string): Pet | undefined => {
 export function insertPet(p: Omit<Pet, "id">): string {
   const id = genId("p");
   db().runSync(
-    `INSERT INTO pets (id,name,species,breed,sex,age_label,weight_kg,risk_flags,color,created_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?)`,
+    `INSERT INTO pets (id,name,species,breed,sex,age_label,weight_kg,risk_flags,color,photo_uri,created_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
     [id, p.name, p.species, p.breed ?? null, p.sex ?? null, p.ageLabel ?? null,
-     p.weightKg ?? null, JSON.stringify(p.riskFlags ?? []), p.color, now()]
+     p.weightKg ?? null, JSON.stringify(p.riskFlags ?? []), p.color, p.photoUri ?? null, now()]
   );
   return id;
 }
@@ -55,18 +57,19 @@ export function updatePet(id: string, p: Partial<Omit<Pet, "id">>): void {
   if (!cur) return;
   const m = { ...cur, ...p };
   db().runSync(
-    `UPDATE pets SET name=?,species=?,breed=?,sex=?,age_label=?,weight_kg=?,risk_flags=?,color=? WHERE id=?`,
+    `UPDATE pets SET name=?,species=?,breed=?,sex=?,age_label=?,weight_kg=?,risk_flags=?,color=?,photo_uri=? WHERE id=?`,
     [m.name, m.species, m.breed ?? null, m.sex ?? null, m.ageLabel ?? null,
-     m.weightKg ?? null, JSON.stringify(m.riskFlags ?? []), m.color, id]
+     m.weightKg ?? null, JSON.stringify(m.riskFlags ?? []), m.color, m.photoUri ?? null, id]
   );
 }
 
 // ---- events (append-only) ----
-/** Current timeline for a pet = events not superseded by a later one. Newest first. */
+/** Current timeline for a pet = newest rows that are neither superseded nor tombstones. */
 export const listEvents = (petId: string): TimelineEvent[] =>
   db().getAllSync(
     `SELECT * FROM events e
      WHERE e.pet_id = ?
+       AND e.deleted = 0
        AND NOT EXISTS (SELECT 1 FROM events x WHERE x.supersedes = e.id)
      ORDER BY e.created_at DESC`,
     [petId]
@@ -77,12 +80,12 @@ export const getEvent = (id: string): TimelineEvent | undefined => {
   return r ? toEvent(r) : undefined;
 };
 
-export function insertEvent(e: Omit<TimelineEvent, "id">, supersedes?: string): string {
+export function insertEvent(e: Omit<TimelineEvent, "id">, supersedes?: string, deleted = false): string {
   const id = genId("e");
   db().runSync(
-    `INSERT INTO events (id,pet_id,kind,summary,date_label,source,confirmed,supersedes,created_at)
-     VALUES (?,?,?,?,?,?,?,?,?)`,
-    [id, e.petId, e.kind, e.summary, e.dateLabel, e.source, e.confirmed ? 1 : 0, supersedes ?? null, now()]
+    `INSERT INTO events (id,pet_id,kind,summary,date_label,source,confirmed,supersedes,deleted,created_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?)`,
+    [id, e.petId, e.kind, e.summary, e.dateLabel, e.source, e.confirmed ? 1 : 0, supersedes ?? null, deleted ? 1 : 0, now()]
   );
   return id;
 }
@@ -94,13 +97,11 @@ export function correctEvent(originalId: string, patch: Partial<Omit<TimelineEve
   return insertEvent({ ...cur, ...patch }, originalId);
 }
 
-/** Soft-delete = append a tombstone that supersedes the event, marked so it's filtered out. */
+/** Soft-delete = append a tombstone that supersedes the event AND is itself hidden (deleted=1). */
 export function deleteEvent(id: string): void {
   const cur = getEvent(id);
   if (!cur) return;
-  // a tombstone supersedes the original; listEvents already drops superseded rows,
-  // and the tombstone itself is excluded by the kind check below.
-  insertEvent({ ...cur, summary: "(deleted)", confirmed: false }, id);
+  insertEvent({ ...cur, summary: "(deleted)", confirmed: false }, id, true);
 }
 
 // ---- reminders ----

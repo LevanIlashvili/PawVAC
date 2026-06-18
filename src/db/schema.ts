@@ -3,7 +3,7 @@
 import * as SQLite from "expo-sqlite";
 
 const DB_NAME = "pawvac.db";
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 let _db: SQLite.SQLiteDatabase | null = null;
 
@@ -28,6 +28,7 @@ export function initSchema(): void {
       weight_kg   REAL,
       risk_flags  TEXT NOT NULL DEFAULT '[]',  -- JSON array
       color       TEXT NOT NULL,
+      photo_uri   TEXT,
       created_at  INTEGER NOT NULL
     );
 
@@ -42,6 +43,7 @@ export function initSchema(): void {
       source      TEXT NOT NULL,
       confirmed   INTEGER NOT NULL DEFAULT 0,
       supersedes  TEXT,                          -- id of corrected event, or NULL
+      deleted     INTEGER NOT NULL DEFAULT 0,    -- 1 = tombstone (hidden from the timeline)
       created_at  INTEGER NOT NULL,
       FOREIGN KEY (pet_id) REFERENCES pets(id)
     );
@@ -78,7 +80,20 @@ export function initSchema(): void {
 
     CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);
   `);
+  migrate(d);
   d.runSync(`INSERT OR REPLACE INTO meta (key, value) VALUES ('schema_version', ?)`, [String(SCHEMA_VERSION)]);
+}
+
+// Idempotent column adds for DBs created before a column existed (v1 → v2: events.deleted).
+function migrate(d: SQLite.SQLiteDatabase): void {
+  const eventCols = d.getAllSync<{ name: string }>(`PRAGMA table_info(events)`).map((c) => c.name);
+  if (!eventCols.includes("deleted")) {
+    d.execSync(`ALTER TABLE events ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0`);
+  }
+  const petCols = d.getAllSync<{ name: string }>(`PRAGMA table_info(pets)`).map((c) => c.name);
+  if (!petCols.includes("photo_uri")) {
+    d.execSync(`ALTER TABLE pets ADD COLUMN photo_uri TEXT`);
+  }
 }
 
 export function isSeeded(): boolean {
