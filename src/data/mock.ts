@@ -1,40 +1,56 @@
-// Mock data for the UI phase — a fake Toby (+ Luna, Pip) so screens have content.
-// Replaced by the real store when functionality binds in a later phase.
+// Seed data — Toby's real record (mapped from the patient health record markdown).
+// This is the first-run seed copied into SQLite by src/db/seed.ts.
 import { Pet, TimelineEvent, Reminder, CalendarItem } from "./types";
 
 export const PETS: Pet[] = [
-  { id: "toby", name: "Toby", species: "dog", breed: "Rottweiler", sex: "m", ageLabel: "7y", weightKg: 50, riskFlags: ["large breed", "deep-chested"], color: "#E8853F" },
-  { id: "luna", name: "Luna", species: "cat", breed: "Domestic Shorthair", sex: "f", ageLabel: "4y", weightKg: 5, riskFlags: [], color: "#48BFE7" },
-  { id: "pip", name: "Pip", species: "other", breed: "Holland Lop", sex: "m", ageLabel: "2y", weightKg: 2, riskFlags: [], color: "#3ECF8E" },
+  {
+    id: "toby",
+    name: "Toby",
+    species: "dog",
+    breed: "Rottweiler",
+    sex: "m",
+    ageLabel: "7y",
+    weightKg: 48,
+    riskFlags: ["large breed", "deep-chested"],
+    color: "#E8853F",
+  },
 ];
 
 export const petById = (id: string) => PETS.find((p) => p.id === id);
 
+// Timeline = the clinically meaningful record, newest first (the store/UI render order).
+// Dates are the real ones from the record; [approx] dates kept as given.
 export const EVENTS: TimelineEvent[] = [
-  { id: "e1", petId: "toby", kind: "symptom", summary: "Limping rear-left, off food", dateLabel: "today", source: "voice", confirmed: true },
-  { id: "e2", petId: "toby", kind: "vaccine", summary: "Rabies booster", dateLabel: "Jan 15", source: "manual", confirmed: true },
-  { id: "e3", petId: "toby", kind: "weight", summary: "50 kg", dateLabel: "Sep 1", source: "manual", confirmed: true },
-  { id: "e4", petId: "toby", kind: "vet_visit", summary: "Vet visit: osteomyelitis, clindamycin course", dateLabel: "Mar '24", source: "ocr", confirmed: true },
-  { id: "e5", petId: "toby", kind: "lab_result", summary: "CBC: WBC 14.2 (ref 6–17)", dateLabel: "Mar '24", source: "ocr", confirmed: true },
-  { id: "e6", petId: "luna", kind: "note", summary: "New scratching post, settling in well", dateLabel: "2 days ago", source: "manual", confirmed: true },
+  { id: "e_mdt",      petId: "toby", kind: "vet_visit",  summary: "MDT discussion (ortho/surgery + oncology): immune-mediated bone disease now a differential. Analgesia only to date. OPEN: bone culture to exclude infection — infection NOT yet excluded.", dateLabel: "Jun 22", source: "manual", confirmed: true },
+  { id: "e_xray3",    petId: "toby", kind: "lab_result", summary: "Follow-up radiograph (hindlimb stifle, lateral): lesion appearance stable vs prior; focal lucencies correspond to the bone-biopsy site (confirmed with surgeon), not a primary lesion.", dateLabel: "Jun 20", source: "ocr",    confirmed: true },
+  { id: "e_osa_out",  petId: "toby", kind: "note",       summary: "Osteosarcoma RULED OUT — histology negative, cytology negative, no radiographic progression over ~5 weeks.", dateLabel: "Jun 20", source: "manual", confirmed: true },
+  { id: "e_cyto",     petId: "toby", kind: "lab_result", summary: "Cytology: negative for neoplasia.", dateLabel: "Jun 19", source: "ocr", confirmed: true },
+  { id: "e_histo",    petId: "toby", kind: "lab_result", summary: "Bone biopsy histopathology: chronic osteomyelitis + focal fibrosis; mild chronic mixed-cell inflammation; partial trabecular destruction. No evidence of sarcoma. (Dr. Baade / Dr. Kirchhoff)", dateLabel: "Jun 18", source: "ocr", confirmed: true },
+  { id: "e_onsior_end", petId: "toby", kind: "medication", summary: "Onsior (robenacoxib) course completed; continued on ongoing analgesia.", dateLabel: "Jun 16", source: "manual", confirmed: true },
+  { id: "e_biopsy",   petId: "toby", kind: "vet_visit",  summary: "Bone biopsy under general anaesthesia (creates focal lucencies at the sample site).", dateLabel: "Jun 12", source: "manual", confirmed: true },
+  { id: "e_ct",       petId: "toby", kind: "lab_result", summary: "CT scan (pelvic limb / stifle): findings NOT fully consistent with sarcoma.", dateLabel: "Jun 9", source: "ocr", confirmed: true },
+  { id: "e_consult",  petId: "toby", kind: "vet_visit",  summary: "Primary consult: acute pelvic-limb lameness, severe. Initial radiographs — aggressive-appearing lytic lesion, osteosarcoma suspected. Onsior started.", dateLabel: "Jun 5", source: "manual", confirmed: true },
+  { id: "e_sx_lame",  petId: "toby", kind: "symptom",    summary: "Pelvic-limb lameness (rear), severe — acute onset; can barely weight-bear on the affected limb.", dateLabel: "Jun 5", source: "voice", confirmed: true },
+  { id: "e_sx_fall",  petId: "toby", kind: "symptom",    summary: "Instability / near-falls — nearly fell twice in one day; localized pain at the stifle.", dateLabel: "Jun 5", source: "voice", confirmed: true },
+  { id: "e_weight",   petId: "toby", kind: "weight",     summary: "48 kg", dateLabel: "Jun 5", source: "manual", confirmed: true },
 ];
 
 export const REMINDERS: Reminder[] = [
-  { id: "r1", petId: "toby", title: "Clindamycin", schedule: "twice a day", nextLabel: "today 8:00 pm", remainingLabel: "7 days left" },
-  { id: "r2", petId: "toby", title: "Rabies due", schedule: "annual", nextLabel: "Jan 2027" },
+  { id: "r_analgesia", petId: "toby", title: "Pain meds (analgesia)", schedule: "ongoing", nextLabel: "today", remainingLabel: "monitor for breakthrough pain" },
+  { id: "r_culture",   petId: "toby", title: "Bone culture (bacterial + fungal)", schedule: "one-off", nextLabel: "with vet — HIGH priority", remainingLabel: "exclude infection" },
 ];
 
-// Dated, scheduled items for the dashboard calendar/agenda (around June 2026).
+// Dated items for the dashboard calendar/agenda (ISO dates from the record).
 export const CALENDAR: CalendarItem[] = [
-  { id: "c1", petId: "toby", date: "2026-06-21", kind: "medication", title: "Clindamycin", timeLabel: "8:00 am" },
-  { id: "c2", petId: "toby", date: "2026-06-21", kind: "medication", title: "Clindamycin", timeLabel: "8:00 pm" },
-  { id: "c3", petId: "luna", date: "2026-06-21", kind: "meal", title: "Weight check", timeLabel: "morning" },
-  { id: "c4", petId: "toby", date: "2026-06-22", kind: "medication", title: "Clindamycin", timeLabel: "8:00 am" },
-  { id: "c5", petId: "luna", date: "2026-06-24", kind: "vaccine", title: "FVRCP booster due", timeLabel: "vet" },
-  { id: "c6", petId: "toby", date: "2026-06-26", kind: "vet_visit", title: "Recheck: limp / labs", timeLabel: "3:30 pm" },
-  { id: "c7", petId: "pip", date: "2026-06-28", kind: "weight", title: "Monthly weigh-in" },
-  { id: "c8", petId: "toby", date: "2026-07-02", kind: "medication", title: "Clindamycin course ends" },
-  { id: "c9", petId: "pip", date: "2026-06-19", kind: "note", title: "Nail trim", done: true },
+  { id: "c_consult", petId: "toby", date: "2026-06-05", kind: "vet_visit",  title: "Primary consult + first X-rays", done: true },
+  { id: "c_ct",      petId: "toby", date: "2026-06-09", kind: "lab_result", title: "CT scan", done: true },
+  { id: "c_biopsy",  petId: "toby", date: "2026-06-12", kind: "vet_visit",  title: "Bone biopsy (GA)", done: true },
+  { id: "c_histo",   petId: "toby", date: "2026-06-18", kind: "lab_result", title: "Histopathology result", done: true },
+  { id: "c_xray3",   petId: "toby", date: "2026-06-20", kind: "lab_result", title: "Follow-up radiograph", done: true },
+  { id: "c_mdt",     petId: "toby", date: "2026-06-22", kind: "vet_visit",  title: "MDT case discussion", done: true },
+  // Upcoming
+  { id: "c_onco",    petId: "toby", date: "2026-06-24", kind: "vet_visit",  title: "Call oncologist for follow-up" },
+  { id: "c_chest",   petId: "toby", date: "2026-06-30", kind: "lab_result", title: "Chest X-ray scan", timeLabel: "imaging" },
 ];
 
 export const eventsFor = (petId: string) => EVENTS.filter((e) => e.petId === petId);

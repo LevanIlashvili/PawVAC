@@ -4,6 +4,9 @@ import * as SQLite from "expo-sqlite";
 
 const DB_NAME = "pawvac.db";
 const SCHEMA_VERSION = 2;
+// Bump this whenever the seed fixtures (src/data/mock.ts) change to force a wipe + reseed
+// on existing devices. (Pre-release: acceptable to discard local data on seed changes.)
+const SEED_VERSION = 3;
 
 let _db: SQLite.SQLiteDatabase | null = null;
 
@@ -82,6 +85,13 @@ export function initSchema(): void {
   `);
   migrate(d);
   d.runSync(`INSERT OR REPLACE INTO meta (key, value) VALUES ('schema_version', ?)`, [String(SCHEMA_VERSION)]);
+
+  // If the seed fixtures changed since this device last seeded, wipe so seedIfEmpty() re-runs.
+  const seedRow = d.getFirstSync<{ value: string }>(`SELECT value FROM meta WHERE key = 'seed_version'`);
+  if ((seedRow ? parseInt(seedRow.value, 10) : 0) !== SEED_VERSION) {
+    resetDb();
+    d.runSync(`INSERT OR REPLACE INTO meta (key, value) VALUES ('seed_version', ?)`, [String(SEED_VERSION)]);
+  }
 }
 
 // Idempotent column adds for DBs created before a column existed (v1 → v2: events.deleted).
