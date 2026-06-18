@@ -29,7 +29,7 @@ export default function Ask() {
     if (!q.trim()) return;
     setLoading(true); setError(null); setResult(null);
     try {
-      setResult(await runTriage(pet, events, q.trim()));
+      setResult(await runTriage(pet, events, q.trim(), mode));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong running on-device.");
     } finally {

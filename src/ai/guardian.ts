@@ -11,17 +11,22 @@ export const maxBand = (a: Band, b: Band): Band => (rank(a) >= rank(b) ? a : b);
 interface Toxin { match: RegExp; species: Pet["species"][]; name: string }
 export const TOXINS: Toxin[] = [
   { match: /chocolate|cocoa|theobromine/i, species: ["dog", "cat"], name: "theobromine (chocolate)" },
-  { match: /xylitol|sugar.?free gum/i, species: ["dog"], name: "xylitol" },
+  { match: /xylitol|sugar.?free gum/i, species: ["dog", "other"], name: "xylitol" },
   { match: /grape|raisin/i, species: ["dog", "cat"], name: "grapes/raisins" },
   { match: /onion|garlic|chives|leek|allium/i, species: ["dog", "cat"], name: "alliums" },
   { match: /ibuprofen|naproxen|nsaid|paracetamol|acetaminophen|tylenol/i, species: ["dog", "cat"], name: "human NSAID/paracetamol" },
+  { match: /lily|lilies/i, species: ["cat"], name: "lily (cat-lethal — acute kidney injury)" },
   { match: /antifreeze|ethylene glycol/i, species: ["dog", "cat"], name: "antifreeze" },
   { match: /rat ?poison|rodenticide|bromethalin/i, species: ["dog", "cat"], name: "rodenticide" },
 ];
 
 export const CRISIS_KEYWORDS = /collapse|collapsed|seizure|seizing|convuls|can'?t breathe|not breathing|struggling to breathe|unconscious|won'?t wake|bloated belly|distended (and )?hard belly|hard,? swollen belly|can'?t (pee|urinate)|straining to (pee|urinate).*nothing|unproductive retch|pale gums|blue gums|profuse bleeding|hit by (a )?car/i;
 
-export const DOSE_PATTERN = /\b\d+(\.\d+)?\s?(mg|ml|mcg|g|tablet|pill|cc)\b/i;
+// Global so EVERY dose in a string is caught (multi-dose schedules are how an LLM phrases dosing).
+// Build a fresh regex per call to avoid shared lastIndex state between test/replace.
+const doseRe = () => /\b\d+(\.\d+)?\s?(mg|ml|mcg|g|tablets?|pills?|caps?|cc)\b/gi;
+export const hasDose = (s: string) => doseRe().test(s);
+export const redactDoses = (s: string) => s.replace(doseRe(), "[dose redacted — ask your vet]");
 
 export interface PreScan {
   trip: boolean;
@@ -34,7 +39,9 @@ export interface PreScan {
 // Pre-scan: deterministic trip BEFORE the LLM ever runs (instant URGENT for toxins/crises).
 export function preScan(input: string, pet: Pet): PreScan {
   for (const t of TOXINS) {
-    if (t.match.test(input) && t.species.includes(pet.species))
+    if (!t.match.test(input)) continue;
+    // For species we can't reason about ("other"), unknown metabolism → round up regardless.
+    if (t.species.includes(pet.species) || pet.species === "other")
       return { trip: true, band: "vet_urgent", reason: `toxic: ${t.name}`, kind: "toxicity", tripwires: [] };
   }
   if (CRISIS_KEYWORDS.test(input))
@@ -49,19 +56,25 @@ export function preScan(input: string, pet: Pet): PreScan {
   return { trip: false, tripwires };
 }
 
-export interface ClinicianOut { band?: Band; rationale?: string; confidence?: number }
+export interface ClinicianOut { band?: Band; rationale?: string; confidence?: number; askYourVet?: string[] }
+
+const isBand = (b: unknown): b is Band => b === "home_monitor" || b === "vet_soon" || b === "vet_urgent";
 
 // Minimum band the rules demand regardless of the model (uncertainty rounds up — I5).
 export function rulesMinBand(out: ClinicianOut, pre: PreScan): Band {
   let min: Band = "home_monitor";
   if (pre.tripwires.length) min = maxBand(min, "vet_soon");
   if ((out.confidence ?? 1) < 0.5) min = maxBand(min, "vet_soon");
+  // Missing/invalid model band = maximal uncertainty → floor up (I5). A failed parse must NOT
+  // silently render "monitor at home".
+  if (!isBand(out.band)) min = maxBand(min, "vet_soon");
   return min;
 }
 
 export interface GuardianResult {
   band: Band;
   rationale: string;
+  askYourVet: string[];
   redFlagBoxes: string[];
   violations: string[];
   upgraded: boolean;
@@ -70,14 +83,16 @@ export interface GuardianResult {
 // Post-process the Clinician output. Can only upgrade, never downgrade (I8).
 export function guardianReview(out: ClinicianOut, pet: Pet, pre: PreScan): GuardianResult {
   const violations: string[] = [];
-  let band: Band = out.band ?? "home_monitor";
-  band = maxBand(band, rulesMinBand(out, pre));
+  const startBand: Band = isBand(out.band) ? out.band : "home_monitor";
+  const band = maxBand(startBand, rulesMinBand(out, pre));
 
+  // Strip ANY dose from every owner-facing field (global), not just the first match.
   let rationale = out.rationale ?? "";
-  if (DOSE_PATTERN.test(rationale)) {
-    violations.push("dose_present_in_output");
-    rationale = rationale.replace(DOSE_PATTERN, "[dose redacted — ask your vet]");
-  }
+  if (hasDose(rationale)) { violations.push("dose_in_rationale"); rationale = redactDoses(rationale); }
+  const askYourVet = (out.askYourVet ?? []).map((a) => {
+    if (hasDose(a)) { violations.push("dose_in_ask_your_vet"); return redactDoses(a); }
+    return a;
+  });
 
   const redFlagBoxes = pre.tripwires.map((tw) => {
     if (tw === "rule_out_GDV_bloat")
@@ -87,5 +102,5 @@ export function guardianReview(out: ClinicianOut, pet: Pet, pre: PreScan): Guard
     return tw;
   });
 
-  return { band, rationale, redFlagBoxes, violations, upgraded: band !== (out.band ?? "home_monitor") };
+  return { band, rationale, askYourVet, redFlagBoxes, violations, upgraded: band !== startBand };
 }

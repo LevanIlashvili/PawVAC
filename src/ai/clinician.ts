@@ -46,13 +46,27 @@ export interface TriageResult {
 const signalment = (p: Pet) =>
   [p.species, p.breed, p.ageLabel, p.weightKg && `${p.weightKg} kg`, ...(p.riskFlags ?? [])].filter(Boolean).join(", ");
 
-export async function runTriage(pet: Pet, events: TimelineEvent[], question: string): Promise<TriageResult> {
+export type AskMode = "triage" | "diagnosis";
+
+const DIAGNOSIS_SYSTEM = `You are helping a pet owner UNDERSTAND something their vet already told them.
+You are NOT a vet and you do NOT diagnose or re-triage. Explain the vet's terms in plain language,
+cross-check against the pet's record (cite [eN]), and list good questions to ask at the next visit.
+HARD RULES:
+- Never contradict or overturn the vet. Never give a drug or a dose.
+- Reason ONLY from the CONTEXT provided. When unsure, say so.
+- Set band to home_monitor unless the record itself shows an urgent sign; a safety layer may upgrade it.
+Output JSON only.`;
+
+export async function runTriage(pet: Pet, events: TimelineEvent[], question: string, mode: AskMode = "triage"): Promise<TriageResult> {
   // 1) Deterministic pre-scan — toxins/crises trip an instant URGENT, no model wait (I8).
   const pre = preScan(question, pet);
   if (pre.trip) {
+    // Route through the Guardian too, so the band is never trusted raw (defense in depth).
+    const guarded = guardianReview({ band: pre.band, confidence: 1 }, pet, pre);
     return {
-      band: pre.band!, rationale: pre.reason ?? "", askYourVet: [],
-      citedIds: [], redFlagBoxes: pre.reason ? [pre.reason] : [], upgraded: true, instant: true,
+      band: guarded.band, rationale: pre.reason ?? "", askYourVet: [],
+      citedIds: [], redFlagBoxes: pre.reason ? [pre.reason, ...guarded.redFlagBoxes] : guarded.redFlagBoxes,
+      upgraded: true, instant: true,
     };
   }
 
@@ -62,30 +76,32 @@ export async function runTriage(pet: Pet, events: TimelineEvent[], question: str
   const ctx = hits.map((h) => h.content).join("\n");
 
   // 3) Reason — MedGemma grounded only on retrieved context, structured output.
+  const system = mode === "diagnosis" ? DIAGNOSIS_SYSTEM : CLINICIAN_SYSTEM;
   const modelId = await getClinician();
   const run = completion({
     modelId,
     history: [
-      { role: "system", content: `${CLINICIAN_SYSTEM}\nThe pet is a ${signalment(pet)}. Reason for THIS animal.` },
-      { role: "user", content: `CONTEXT (retrieved from this pet's record):\n${ctx}\n\nOWNER QUESTION: ${question}\n\nReturn the JSON.` },
+      { role: "system", content: `${system}\nThe pet is a ${signalment(pet)}. Reason for THIS animal.` },
+      { role: "user", content: `CONTEXT (retrieved from this pet's record):\n${ctx}\n\nOWNER ${mode === "diagnosis" ? "WANTS TO UNDERSTAND" : "QUESTION"}: ${question}\n\nReturn the JSON.` },
     ],
     stream: false,
     responseFormat: { type: "json_schema", json_schema: { name: "triage", schema: BAND_SCHEMA, strict: true } },
   });
   const final = await run.final;
   let draft: any = {};
-  try { draft = JSON.parse(final.contentText ?? "{}"); } catch { /* malformed → guardian floors it */ }
+  try { draft = JSON.parse(final.contentText ?? "{}"); } catch { /* malformed → guardian floors up (I5) */ }
 
-  // 4) Guard — deterministic floor/upgrade + dose strip.
+  // 4) Guard — deterministic floor/upgrade + dose strip over ALL owner-facing fields.
   const guarded = guardianReview(
-    { band: draft.band, rationale: draft.rationale, confidence: draft.confidence },
+    { band: draft.band, rationale: draft.rationale, confidence: draft.confidence,
+      askYourVet: Array.isArray(draft.ask_your_vet) ? draft.ask_your_vet : [] },
     pet, pre
   );
 
   return {
     band: guarded.band,
     rationale: guarded.rationale,
-    askYourVet: Array.isArray(draft.ask_your_vet) ? draft.ask_your_vet : [],
+    askYourVet: guarded.askYourVet,
     citedIds: Array.isArray(draft.cited_event_ids) && draft.cited_event_ids.length ? draft.cited_event_ids : citedIds(hits),
     redFlagBoxes: guarded.redFlagBoxes,
     upgraded: guarded.upgraded,
