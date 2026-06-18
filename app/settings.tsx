@@ -1,5 +1,8 @@
 // Settings — on-device models, privacy, and the offline self-test. No account, nothing leaves the phone.
 import { Alert, Text, View, StyleSheet } from "react-native";
+import { useActivePet } from "@/store/app";
+import { preScan } from "@/ai/guardian";
+import { listEvents } from "@/db/repo";
 import { Button, Card } from "@/ui/primitives";
 import { DetailScreen } from "@/ui/DetailScreen";
 import { Icon } from "@/ui/icons";
@@ -14,6 +17,24 @@ const MODELS = [
 ];
 
 export default function Settings() {
+  const pet = useActivePet();
+
+  // Real, no-network self-test: the local DB read + the deterministic safety floor both
+  // execute fully offline. (The model path also runs offline once downloaded; this proves
+  // the two pieces that never need the network.)
+  const runSelfTest = () => {
+    const checks: string[] = [];
+    try {
+      const n = pet ? listEvents(pet.id).length : 0;
+      checks.push(`✓ Local record readable (${n} events)`);
+    } catch { checks.push("✗ Local record read failed"); }
+    if (pet) {
+      const trip = preScan("ate chocolate", { ...pet, species: "dog" });
+      checks.push(trip.trip && trip.band === "vet_urgent" ? "✓ Safety floor fires offline (toxin → URGENT)" : "✗ Safety floor did not fire");
+    }
+    Alert.alert("Offline self-test", `${checks.join("\n")}\n\nAll on-device — no network used.`);
+  };
+
   return (
     <DetailScreen title="Settings">
       <Text style={[type.label, s.section]}>On-device models</Text>
@@ -37,8 +58,8 @@ export default function Settings() {
           <Text style={s.privacyText}>Nothing leaves this phone. No account. No cloud.</Text>
         </View>
       </Card>
-      <Button title="Run airplane-mode self-test" variant="ghost" style={{ marginTop: 12 }} onPress={() => Alert.alert("Airplane-mode test", "Turns on airplane mode, then re-runs log + ask + pack to prove they work offline. Wires up in Phase 2.")} />
-      <Text style={s.note}>Turns on airplane mode, then re-runs log + ask + pack to prove they work fully offline.</Text>
+      <Button title="Run offline self-test" variant="ghost" style={{ marginTop: 12 }} onPress={runSelfTest} />
+      <Text style={s.note}>Checks the local record + deterministic safety floor run with no network.</Text>
     </DetailScreen>
   );
 }

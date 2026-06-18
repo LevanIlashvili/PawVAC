@@ -1,6 +1,6 @@
 // Consistent app header: brand + settings (top row), pet-switcher chips, screen title.
 // Rendered by the (tabs) layout so every tab gets the same chrome.
-import { Pressable, ScrollView, Text, View, StyleSheet } from "react-native";
+import { Image, Pressable, ScrollView, Text, View, StyleSheet } from "react-native";
 import { router } from "expo-router";
 import { useApp, usePets } from "@/store/app";
 import { colors } from "./theme";
@@ -27,7 +27,7 @@ export function AppHeader({ title, showSwitcher = true }: { title: string; showS
             const on = p.id === activePetId;
             return (
               <Pressable key={p.id} onPress={() => setActivePet(p.id)} style={[s.av, on && s.avOn]}>
-                <Icon name={speciesIcon[p.species]} size={20} color={on ? colors.accent : colors.dim} />
+                {p.photoUri ? <Image source={{ uri: p.photoUri }} style={s.avImg} /> : <Icon name={speciesIcon[p.species]} size={20} color={on ? colors.accent : colors.dim} />}
               </Pressable>
             );
           })}
@@ -47,7 +47,8 @@ const s = StyleSheet.create({
   topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingTop: 6 },
   brand: { ...type.heading, color: colors.accent },
   switcher: { gap: 8, paddingHorizontal: 16, paddingTop: 10, alignItems: "center" },
-  av: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.accentTint, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "transparent" },
+  av: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.accentTint, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "transparent", overflow: "hidden" },
+  avImg: { width: "100%", height: "100%" },
   avOn: { borderColor: colors.accent },
   avAdd: { backgroundColor: "#f3f4f6" },
   title: { ...type.title, paddingHorizontal: 16, paddingTop: 12 },

@@ -26,12 +26,12 @@ export default function Reminders() {
 
         {reminders.map((r) => {
           const isMed = /clind|mg|tablet|pill|dose|daily|day/i.test(`${r.title} ${r.schedule}`);
-          const done = r.nextLabel.startsWith("✓");
+          const done = !!r.done;
           return (
-            <Card key={r.id} style={s.card}>
+            <Card key={r.id} style={[s.card, done && s.cardDone]}>
               <View style={s.row}>
-                <View style={s.iconWrap}><Icon name={isMed ? "pill" : ui.vaccineDue} size={18} color={colors.accent} /></View>
-                <Text style={s.title}>{r.title} · {r.schedule}</Text>
+                <View style={s.iconWrap}><Icon name={done ? "check-circle" : isMed ? "pill" : ui.vaccineDue} size={18} color={done ? colors.bandHome : colors.accent} /></View>
+                <Text style={[s.title, done && s.titleDone]}>{r.title} · {r.schedule}</Text>
                 {r.remainingLabel && <Text style={s.meta}>{r.remainingLabel}</Text>}
               </View>
               <Text style={s.next}>next: {r.nextLabel}</Text>
@@ -112,6 +112,8 @@ function NewReminderSheet({ open, petId, onClose }: { open: boolean; petId: stri
 
 const s = StyleSheet.create({
   card: { padding: 14, marginBottom: 10 },
+  cardDone: { opacity: 0.6 },
+  titleDone: { textDecorationLine: "line-through" },
   row: { flexDirection: "row", alignItems: "center", gap: 10 },
   iconWrap: { width: 32, height: 32, borderRadius: 10, backgroundColor: colors.accentTint, alignItems: "center", justifyContent: "center" },
   title: { flex: 1, ...type.bodyMedium },

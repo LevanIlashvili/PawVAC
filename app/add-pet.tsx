@@ -1,8 +1,8 @@
-// Add pet form — multi-species, breed, sex, age, weight, photo placeholder.
-// Persists to SQLite via the store; photo picker lands in a later phase.
+// Add pet form — multi-species, breed, sex, age, weight, photo. Persists to SQLite via the store.
 import { useState } from "react";
-import { Alert, Pressable, Text, View, StyleSheet } from "react-native";
+import { Alert, Image, Pressable, Text, View, StyleSheet } from "react-native";
 import { router } from "expo-router";
+import * as ImagePicker from "expo-image-picker";
 import { Species } from "@/data/types";
 import { useApp } from "@/store/app";
 import { Button, Field, Pill } from "@/ui/primitives";
@@ -22,24 +22,31 @@ export default function AddPet() {
   const [sex, setSex] = useState<"m" | "f" | undefined>();
   const [age, setAge] = useState("");
   const [weight, setWeight] = useState("");
+  const [photoUri, setPhotoUri] = useState<string | undefined>();
+
+  const pickPhoto = async () => {
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8, allowsEditing: true, aspect: [1, 1] });
+    if (!res.canceled && res.assets?.[0]?.uri) setPhotoUri(res.assets[0].uri);
+  };
 
   const save = () => {
     if (!name.trim()) { Alert.alert("Name required", "Give your pet a name."); return; }
+    const w = parseFloat(weight);
     addPet({
       name: name.trim(), species, breed: breed.trim() || undefined, sex,
       ageLabel: age.trim() || undefined,
-      weightKg: weight ? Number(weight) : undefined,
-      riskFlags: [], color: PLACEHOLDER_COLOR,
+      weightKg: Number.isFinite(w) ? w : undefined,
+      riskFlags: [], color: PLACEHOLDER_COLOR, photoUri,
     });
-    router.replace("/");
+    router.dismissAll();
   };
 
   return (
     <DetailScreen title="Add pet">
-      <Pressable style={s.photo} onPress={() => Alert.alert("Add photo", "Opens the camera / photo library. Wires up in Phase 2.")}>
-        <Icon name="camera-plus" size={28} color={colors.muted} />
+      <Pressable style={s.photo} onPress={pickPhoto}>
+        {photoUri ? <Image source={{ uri: photoUri }} style={s.photoImg} /> : <Icon name="camera-plus" size={28} color={colors.muted} />}
       </Pressable>
-      <Text style={s.photoHint}>add photo</Text>
+      <Text style={s.photoHint}>{photoUri ? "change photo" : "add photo"}</Text>
 
       <Field label="Name *" placeholder="e.g. Toby" value={name} onChangeText={setName} />
 
@@ -67,7 +74,8 @@ export default function AddPet() {
 }
 
 const s = StyleSheet.create({
-  photo: { alignSelf: "center", width: 72, height: 72, borderRadius: 18, backgroundColor: colors.accentTint, alignItems: "center", justifyContent: "center" },
+  photo: { alignSelf: "center", width: 72, height: 72, borderRadius: 18, backgroundColor: colors.accentTint, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  photoImg: { width: "100%", height: "100%" },
   photoHint: { ...type.caption, textAlign: "center", marginTop: 4, marginBottom: 10 },
   label: { ...type.label, marginBottom: 6 },
   segRow: { flexDirection: "row", gap: 8, marginBottom: 12 },

@@ -1,5 +1,4 @@
 // Home tab — cross-pet dashboard: mini calendar peek, today's agenda, per-pet status cards.
-import { useState } from "react";
 import { Pressable, Text, View, StyleSheet } from "react-native";
 import { router, Redirect } from "expo-router";
 import { useApp, usePets, useCalendar } from "@/store/app";

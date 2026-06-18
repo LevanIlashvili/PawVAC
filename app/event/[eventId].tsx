@@ -60,12 +60,9 @@ export default function EventDetail() {
         <Row label="Status" value={event.confirmed ? "Confirmed" : "Pending confirmation"} />
       </Card>
 
-      {event.source === "voice" || event.source === "photo" || event.source === "ocr" ? (
-        <Button title="Play / view original" variant="ghost" style={{ marginTop: 14 }} onPress={() => Alert.alert("Original capture", "Plays the saved audio / opens the scanned image. Wires up in Phase 2.")} />
-      ) : null}
 
       <View style={s.actions}>
-        <Button title="Correct" variant="ghost" style={{ flex: 1 }} onPress={() => router.push("/add-event")} />
+        <Button title="Correct" variant="ghost" style={{ flex: 1 }} onPress={() => router.push(`/add-event?correctId=${event.id}`)} />
         <Button title="Delete" variant="ghost" style={[{ flex: 1 }, s.delete]}
           onPress={() => Alert.alert("Delete event?", "The original is kept in the record; this appends a deletion.", [
             { text: "Cancel", style: "cancel" },
