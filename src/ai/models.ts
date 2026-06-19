@@ -3,6 +3,7 @@
 // Loads are serialized (RF-6: SDK single-instance cache lock).
 import {
   loadModel,
+  unloadModel,
   type ModelProgressUpdate,
   MEDGEMMA_4B_IT_Q4_1,
   QWEN3_1_7B_INST_Q4,
@@ -11,12 +12,22 @@ import {
   OCR_LATIN_RECOGNIZER_1,
   OCR_CRAFT_DETECTOR,
 } from "@qvac/sdk";
+import { audit } from "./audit";
 
 type Role = "clinician" | "embeddings" | "asr" | "ocr";
 type Progress = (p: ModelProgressUpdate) => void;
 
 const cache: Partial<Record<Role, string>> = {};
 let chain: Promise<unknown> = Promise.resolve();
+
+// Load a model and record its load time in the audit log.
+// (loadModel is heavily overloaded; the call sites are typed correctly, so accept the options loosely.)
+async function timedLoad(role: Role, model: string, opts: any): Promise<string> {
+  const t = Date.now();
+  const id = await loadModel(opts);
+  audit({ kind: "model_load", role, model, loadMs: Date.now() - t });
+  return id;
+}
 
 // Serialize loads so two screens don't race the SDK cache lock.
 function serialize<T>(fn: () => Promise<T>): Promise<T> {
@@ -41,7 +52,8 @@ export async function getClinician(onProgress?: Progress): Promise<string> {
   return serialize(async () => {
     if (cache.clinician) return cache.clinician;
     const modelSrc = await pickClinicianSrc();
-    const id = await loadModel({ modelSrc, modelType: "llm", modelConfig: { ctx_size: 4096 }, onProgress });
+    const id = await timedLoad("clinician", modelSrc.name ?? "clinician",
+      { modelSrc, modelType: "llm", modelConfig: { ctx_size: 4096 }, onProgress });
     cache.clinician = id;
     return id;
   });
@@ -51,7 +63,8 @@ export async function getEmbeddings(onProgress?: Progress): Promise<string> {
   if (cache.embeddings) return cache.embeddings;
   return serialize(async () => {
     if (cache.embeddings) return cache.embeddings;
-    const id = await loadModel({ modelSrc: EMBEDDINGGEMMA_300M_Q8_0, modelType: "llamacpp-embedding", onProgress });
+    const id = await timedLoad("embeddings", EMBEDDINGGEMMA_300M_Q8_0.name ?? "embeddings",
+      { modelSrc: EMBEDDINGGEMMA_300M_Q8_0, modelType: "llamacpp-embedding", onProgress });
     cache.embeddings = id;
     return id;
   });
@@ -61,7 +74,8 @@ export async function getAsr(onProgress?: Progress): Promise<string> {
   if (cache.asr) return cache.asr;
   return serialize(async () => {
     if (cache.asr) return cache.asr;
-    const id = await loadModel({ modelSrc: WHISPER_TINY, modelType: "whisper", onProgress });
+    const id = await timedLoad("asr", WHISPER_TINY.name ?? "whisper",
+      { modelSrc: WHISPER_TINY, modelType: "whisper", onProgress });
     cache.asr = id;
     return id;
   });
@@ -72,7 +86,7 @@ export async function getOcr(onProgress?: Progress): Promise<string> {
   return serialize(async () => {
     if (cache.ocr) return cache.ocr;
     // OCR is a 2-stage pipeline: recognizer (modelSrc) + CRAFT detector (POC 12).
-    const id = await loadModel({
+    const id = await timedLoad("ocr", OCR_LATIN_RECOGNIZER_1.name ?? "ocr", {
       modelSrc: OCR_LATIN_RECOGNIZER_1,
       modelType: "ocr",
       modelConfig: { langList: ["en"], pipelineMode: "easyocr", recognizerBatchSize: 1, detectorModelSrc: OCR_CRAFT_DETECTOR },
@@ -81,4 +95,13 @@ export async function getOcr(onProgress?: Progress): Promise<string> {
     cache.ocr = id;
     return id;
   });
+}
+
+/** Unload all loaded models (frees RAM) and record each in the audit log. */
+export async function unloadAll(): Promise<void> {
+  for (const [role, id] of Object.entries(cache)) {
+    if (!id) continue;
+    try { await unloadModel({ modelId: id }); audit({ kind: "model_unload", role, model: id }); } catch { /* noop */ }
+    delete cache[role as Role];
+  }
 }

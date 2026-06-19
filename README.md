@@ -130,6 +130,20 @@ const text = await transcribe({ modelId, audioChunk })     // voice → transcri
 const { blocks } = ocr({ modelId, image })                 // document image → text blocks
 ```
 
+### Audit log
+
+Every model **load/unload** and every **inference** is recorded as a structured JSON-lines entry
+(`src/ai/audit.ts`), persisted on-device and exportable from **Settings → Export AI audit log**. Inference
+entries carry the SDK's `CompletionFinal.stats`: the prompt, `promptTokens` / `generatedTokens`,
+**time-to-first-token**, **tokens/sec**, the backend device (cpu/gpu), the resolved triage band, and total
+wall-clock. Example line from a real demo run:
+```json
+{"ts":"2026-06-…","kind":"model_load","role":"clinician","model":"MEDGEMMA_4B_IT_Q4_1","loadMs":8707}
+{"ts":"2026-06-…","kind":"inference","prompt":"Toby has a limp, should I worry","band":"vet_soon",
+ "promptTokens":612,"generatedTokens":188,"timeToFirstTokenMs":4120,"tokensPerSecond":2.6,
+ "backendDevice":"cpu","totalMs":75029}
+```
+
 **Native side.** QVAC ships its inference engines as Bare-runtime native libs (`*.bare`) bridged through
 `react-native-bare-kit`, and an Expo config plugin (`@qvac/sdk/expo-plugin`) that wires the NDK version,
 arm64 ABI, and OpenCL packaging. Because of this, PawVac runs as a **dev-client / standalone build, not in

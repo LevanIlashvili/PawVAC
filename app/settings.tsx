@@ -1,7 +1,9 @@
-// Settings — on-device models, privacy, and the offline self-test. No account, nothing leaves the phone.
+// Settings — on-device models, privacy, the offline self-test, and the AI audit log export.
 import { Alert, Text, View, StyleSheet } from "react-native";
+import * as Sharing from "expo-sharing";
 import { useActivePet } from "@/store/app";
 import { preScan } from "@/ai/guardian";
+import { auditEntries, auditFileUri } from "@/ai/audit";
 import { listEvents } from "@/db/repo";
 import { Button, Card } from "@/ui/primitives";
 import { DetailScreen } from "@/ui/DetailScreen";
@@ -35,6 +37,26 @@ export default function Settings() {
     Alert.alert("Offline self-test", `${checks.join("\n")}\n\nAll on-device — no network used.`);
   };
 
+  // Export the structured AI audit log (model loads + inference perf: TTFT, tokens/sec, …).
+  const exportAudit = async () => {
+    const entries = auditEntries();
+    if (entries.length === 0) { Alert.alert("Audit log", "No AI activity recorded yet. Run an Ask first."); return; }
+    const inf = entries.filter((e) => e.kind === "inference");
+    const summary = inf.slice(-3).map((e) =>
+      `• ${e.band ?? "?"} — ${e.promptTokens ?? "?"}→${e.generatedTokens ?? "?"} tok, TTFT ${e.timeToFirstTokenMs ?? "?"}ms, ${e.tokensPerSecond?.toFixed?.(1) ?? "?"} tok/s, ${e.totalMs}ms`
+    ).join("\n");
+    const uri = auditFileUri();
+    try {
+      if (uri && (await Sharing.isAvailableAsync())) {
+        await Sharing.shareAsync(uri, { mimeType: "application/x-ndjson", dialogTitle: "PawVac AI audit log" });
+      } else {
+        Alert.alert("AI audit log", `${entries.length} entries (${inf.length} inferences)\n\nLatest:\n${summary || "—"}`);
+      }
+    } catch {
+      Alert.alert("AI audit log", `${entries.length} entries (${inf.length} inferences)\n\nLatest:\n${summary || "—"}`);
+    }
+  };
+
   return (
     <DetailScreen title="Settings">
       <Text style={[type.label, s.section]}>On-device models</Text>
@@ -60,6 +82,10 @@ export default function Settings() {
       </Card>
       <Button title="Run offline self-test" variant="ghost" style={{ marginTop: 12 }} onPress={runSelfTest} />
       <Text style={s.note}>Checks the local record + deterministic safety floor run with no network.</Text>
+
+      <Text style={[type.label, s.section]}>Diagnostics</Text>
+      <Button title="Export AI audit log" variant="ghost" onPress={exportAudit} />
+      <Text style={s.note}>Model loads + per-inference performance (prompt, tokens, TTFT, tokens/sec, device) as JSONL.</Text>
     </DetailScreen>
   );
 }

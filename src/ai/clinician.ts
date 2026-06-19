@@ -6,6 +6,7 @@ import { Pet, TimelineEvent } from "@/data/types";
 import { getClinician } from "./models";
 import { ingestPetRecord, searchPetRecord, citedIds } from "./rag";
 import { preScan, guardianReview, Band } from "./guardian";
+import { auditInference } from "./audit";
 
 const CLINICIAN_SYSTEM = `You are the clinical reasoning component of a pet-owner's record-keeping app.
 You are NOT a veterinarian and you do NOT diagnose. You help an owner decide how urgently to seek
@@ -80,6 +81,7 @@ export async function runTriage(pet: Pet, events: TimelineEvent[], question: str
   // 3) Reason — MedGemma grounded only on retrieved context, structured output.
   const system = mode === "diagnosis" ? DIAGNOSIS_SYSTEM : CLINICIAN_SYSTEM;
   const modelId = await getClinician();
+  const t0 = Date.now();
   const run = completion({
     modelId,
     history: [
@@ -90,6 +92,7 @@ export async function runTriage(pet: Pet, events: TimelineEvent[], question: str
     responseFormat: { type: "json_schema", json_schema: { name: "triage", schema: BAND_SCHEMA, strict: true } },
   });
   const final = await run.final;
+  const totalMs = Date.now() - t0;
   let draft: any = {};
   try { draft = JSON.parse(final.contentText ?? "{}"); } catch { /* malformed → guardian floors up (I5) */ }
 
@@ -99,6 +102,9 @@ export async function runTriage(pet: Pet, events: TimelineEvent[], question: str
       askYourVet: Array.isArray(draft.ask_your_vet) ? draft.ask_your_vet : [] },
     pet, pre
   );
+
+  // Audit the inference perf (prompt, tokens, TTFT, tokens/sec, device) from the SDK stats.
+  auditInference({ prompt: question, band: guarded.band, totalMs, stats: (final as any).stats });
 
   return {
     band: guarded.band,
